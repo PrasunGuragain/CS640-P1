@@ -3,14 +3,13 @@ import sys
 import socket
 
 def main():
-    print("In main")
     # Parse command line arguments
     
     # Port
     if '-p' in sys.argv:
         p = sys.argv.index('-p')
-        port = int(sys.argv[p + 1])
-        if port < 2049 and port > 65536:
+        port = sys.argv[p + 1]
+        if port > 2049 and port < 65536:
             print("Sender port should be in this range: 2049 < port < 65536")
             sys.exit(1)
     else:
@@ -20,7 +19,7 @@ def main():
     # Requester port
     if '-g' in sys.argv:
         g = sys.argv.index('-g')
-        requester_port = int(sys.argv[g + 1])
+        requester_port = sys.argv[g + 1]
     else:
         print("Requester port argument (-g) is missing.")
         sys.exit(1)
@@ -28,7 +27,7 @@ def main():
     # Rate
     if '-r' in sys.argv:
         r = sys.argv.index('-r')
-        rate = int(sys.argv[r + 1])
+        rate = sys.argv[r + 1]
     else:
         print("Rate argument (-r) is missing.")
         sys.exit(1)
@@ -36,7 +35,7 @@ def main():
     # Sequence number
     if '-q' in sys.argv:
         q = sys.argv.index('-q')
-        seq_no = int(sys.argv[q + 1])
+        seq_no = sys.argv[q + 1]
     else:
         print("Seq_no argument (-q) is missing.")
         sys.exit(1)
@@ -44,7 +43,7 @@ def main():
     # Length
     if '-l' in sys.argv:
         l = sys.argv.index('-l')
-        length = int(sys.argv[l + 1])
+        length = sys.argv[l + 1]
     else:
         print("Length argument (-l) is missing.")
         sys.exit(1) 
@@ -66,10 +65,7 @@ def main():
     sock.sendto(packet, ('localhost', requester_port))
     
     # Close the socket
-    sock.close()
-    
-    print("End of main")
-    
-print("Before main")
+    # sock.close()
+        
 main()
         
