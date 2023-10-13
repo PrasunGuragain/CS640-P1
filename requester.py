@@ -1,5 +1,8 @@
 import socket
+import struct
 import sys
+import time
+from datetime import datetime
 
 def parse_tracker(tracker_file_path):
     file_parts = {} 
@@ -29,7 +32,7 @@ def parse_tracker(tracker_file_path):
     return file_parts
 
 def main():
-    # Parse command line arguments
+    # PARSE COMMAND LINE ARGUMENTS
     
     # port
     if '-p' in sys.argv:
@@ -50,15 +53,98 @@ def main():
         print("File option argument (-o) is missing.")
         sys.exit(1)
     
+    
+    # PARSE TRACKER
+    
+    tracker_info = parse_tracker("./tracker.txt")
+
+    # Check if the requested file is in the tracker
+    if file_option not in tracker_info:
+        print("Requested file not found in the tracker.")
+        sys.exit(1)
+    
+    
+    # SEND REQUEST PACKET TO SERVER
+    
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('localhost', port))
     
-    data, sender_address = sock.recvfrom(1024)
+    for part_info in tracker_info[file_option]:
+        sender_hostname = part_info["SenderHostname"]
+        sender_port = part_info["SenderPort"]
+        part_id = part_info["ID"]
+
+        request_packet = struct.pack('!cI', b'R', 0) + file_option.encode('utf-8')
+        
+        # Send the request packet to the sender
+        sock.sendto(request_packet, ('localhost', sender_port))
+        
     
-    tracker_info = parse_tracker("./tracker.txt")
+    # RECEIVE PACKETS FROM SERVER
     
-    print("Current data: ", tracker_info)
+    # Specify who is requesting
+    print(f"-----------------------------------------------------------------------------------------------")
+    print(f"Requester's print information:")
+    
+    received_packets = {}
+    while True:
+        data, sender_address = sock.recvfrom(1024) 
+
+        packet_type, sequence_number, payload_length = struct.unpack('!cII', data[:9])
+        payload = data[9:9 + payload_length]  # extract payload
+
+        received_packets[sequence_number] = payload
+
+        curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+
+        # Process the payload data as needed (writing to file, assembling file parts, etc.)
+
+        # Check for END packet and break the loop if received END packet
+        if packet_type == b'E':
+            # Print end receipt information
+            print("End Packet")
+            print(f"recv time: {curTime}")
+            print(f"sender addr: {sender_address[0]}:{sender_address[1]}")
+            print(f"sequence: {sequence_number}")
+            print(f"length: {0}")
+            print(f"payload: {0}")
+
+            
+            sorted_packets = sorted(received_packets.items())
+            reassembled_file = b''.join(packet_payload for _, packet_payload in sorted_packets)
+            print("Sorted Packets:")
+            for seq_number, packet_payload in sorted_packets:
+                print(f"Sequence Number: {seq_number}, Payload: {packet_payload}")
+
+            # Debugging: Print reassembled file content
+            print("Reassembled File Content:")
+            print(reassembled_file.decode())  # Assuming the content is in string format, adjust the decoding method accordingly if necessary
+
+            with open(file_option, "wb") as reassembled_file:
+                reassembled_file.write(reassembled_file)
+
+            break
+        else:
+            # Print data receipt information
+            print(f"recv time: {curTime}")
+            print(f"sender addr: {sender_address[0]}:{sender_address[1]}")
+            print(f"sequence: {sequence_number}")
+            print(f"length: {payload_length}")
+            print(f"payload: {payload[:4]}")
+        
+        sequence_number += payload_length
     
     
+    # SUMMARY
+    
+    print("Summary")
+    print(f"sender addr: ")
+    print(f"Total Data packets: ")
+    print(f"Total Data bytes: ")
+    print(f"Average packets/second: ")
+    print(f"Duration of the test: ")
+    
+    # Close the socket
+    sock.close()
 
 main()

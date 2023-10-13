@@ -1,9 +1,34 @@
 import struct
 import sys
 import socket
+import time
+from datetime import datetime
 
 def main():
-    # Parse command line arguments
+    '''
+    Packet Type:   'D'
+    Sequence Number: seqNo
+    Length: packetLength
+    Payload: 'fileData'
+    '''
+    
+    #request packet
+    '''
+    Packet Type:   'R'
+    Sequence Number: 0
+    Length: 0
+    Payload: 'file1.txt'
+    '''
+    
+    #end packet
+    '''
+    Packet Type:   'E'
+    Sequence Number: 
+    Length: 
+    Payload: ''
+    '''
+    
+    # PARSE COMMAND LINE ARGUMENTS
     
     # Port
     if '-p' in sys.argv:
@@ -19,7 +44,7 @@ def main():
     # Requester port
     if '-g' in sys.argv:
         g = sys.argv.index('-g')
-        requester_port = int(sys.argv[g + 1])
+        requesterPort = int(sys.argv[g + 1])
     else:
         print("Requester port argument (-g) is missing.")
         sys.exit(1)
@@ -35,7 +60,7 @@ def main():
     # Sequence number
     if '-q' in sys.argv:
         q = sys.argv.index('-q')
-        seq_no = int(sys.argv[q + 1])
+        seqNo = int(sys.argv[q + 1])
     else:
         print("Seq_no argument (-q) is missing.")
         sys.exit(1)
@@ -47,34 +72,87 @@ def main():
     else:
         print("Length argument (-l) is missing.")
         sys.exit(1) 
-        
-    # Open the file
-    with open('split.txt', 'rb') as file:
-        fileData = file.read()
     
     # Create a UDP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('localhost', port))
-    print(f"Sender is listening on port {port}")
+
     
-    # load the file part that is being requested to be sent
-        # I think, or maybe this happens later
-    with open("file_part.txt", "rb") as file:
-        file_part = file.read()
+    # GET REQUEST PACKET FROM REQUESTER
     
-    '''
-    # Create a packet
-    packetType = 'D'.encode()
-    header = struct.pack('!cI', packetType, seq_no)
-    packet = header + fileData
+    # packet:
+        # packet type (8 bit) | sequence number (32 bit) | length (32 bit) | payload (variable length)
+    requestPacket, requestAddress = sock.recvfrom(1024)
+    requestPacketType, requestSequenceNumber, requestLength = struct.unpack('!cII', requestPacket[:9])
+    fileName = requestPacket[5:].decode()
     
-    # Send the packets to receiver
     
-    sock.sendto(packet, ('localhost', requester_port))
+    # SPLIT FILE INTO CHUNCKS FOR PACKETS
     
+    filePart = []
+    with open(fileName, "rb") as file:
+        while True:
+            # read in chucks by length
+            chunk = file.read(length)
+            
+            # End of file
+            if not chunk:
+                break
+            
+            filePart.append(chunk)
+     
+     
+    # SEND DATA AND END PACKETS TO REQUESTER
+    
+    # Specify who is sending
+    print(f"-----------------------------------------------------------------------------------------------")
+    print(f"sender1's print information:")
+        
+    # Send Data packets
+    for i in filePart:
+        # Create a packet
+        packetType = 'D'.encode()
+        packetLength = len(i)
+        header = struct.pack('!cII', packetType, seqNo, packetLength)
+        packet = header + i
+        
+         # Send the packets to requester
+        sock.sendto(packet, ('localhost', requesterPort))
+        
+        curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        
+        # Print what was sent
+        print(f"DATA Packet")
+        print(f"send time: {curTime}")
+        print(f"requester addr: {requesterPort}")
+        print(f"Sequence num: {seqNo}")
+        print(f"length: {packetLength}")
+        print(f"payload: {i[:4]}\n\n")
+        
+        seqNo += packetLength
+    
+    # Send End packet
+    packetType = 'E'.encode()
+    packetLength = 0
+    header = struct.pack('!cII', packetType, seqNo, packetLength)
+    payload = b''
+    
+    packet = header + payload
+    
+        # Send the packets to requester
+    sock.sendto(packet, ('localhost', requesterPort))
+    
+    curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+    
+    # Print what was sent
+    print(f"END Packet")
+    print(f"send time: {curTime}")
+    print(f"requester addr: {requesterPort}")
+    print(f"Sequence num: {seqNo}")
+    print(f"length: {packetLength}")
+    print(f"payload: {i}\n\n")
+        
     # Close the socket
     sock.close()
-    '''
         
 main()
-        
