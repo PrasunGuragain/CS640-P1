@@ -103,16 +103,12 @@ def main():
      
      
     # SEND DATA AND END PACKETS TO REQUESTER
-    
-    # Specify who is sending
-    print(f"-----------------------------------------------------------------------------------------------")
-    print(f"sender1's print information:")
         
     # Send Data packets
     for i in filePart:
         # Create a packet
         packetType = 'D'.encode()
-        packetLength = len(i)
+        packetLength = len(i) + 1
         header = struct.pack('!cII', packetType, seqNo, packetLength)
         packet = header + i
         
@@ -124,10 +120,10 @@ def main():
         # Print what was sent
         print(f"DATA Packet")
         print(f"send time: {curTime}")
-        print(f"requester addr: {requesterPort}")
+        print(f"requester addr: {socket.gethostname()}:{requesterPort}")
         print(f"Sequence num: {seqNo}")
         print(f"length: {packetLength}")
-        print(f"payload: {i[:4]}\n\n")
+        print(f"payload: {i.decode('utf-8')[:4]}\n\n")
         
         seqNo += packetLength
     
@@ -147,10 +143,10 @@ def main():
     # Print what was sent
     print(f"END Packet")
     print(f"send time: {curTime}")
-    print(f"requester addr: {requesterPort}")
+    print(f"requester addr: {socket.gethostname()}:{requesterPort}")
     print(f"Sequence num: {seqNo}")
-    print(f"length: {packetLength}")
-    print(f"payload: {i}\n\n")
+    print(f"length: {0}")
+    print(f"payload: ""\n\n")
         
     # Close the socket
     sock.close()
