@@ -5,6 +5,8 @@ from datetime import datetime
 import math
 import time
 
+# TODO: Q15, create correct split.txt file, Duration seems wrong
+
 def parse_tracker(tracker_file_path):
     file_parts = {} 
     
@@ -89,16 +91,24 @@ def main():
     
     num_of_senders =  0
     num_of_ends = 0
+    
+    # received_packets[address] = {sequence number: payload}
     received_packets = {}
     
     while True:
+        # Get packet from sender
         data, sender_address = sock.recvfrom(1024) 
         packet_type, sequence_number, payload_length = struct.unpack('!cII', data[:9])
         payload = data[9:9 + payload_length]  # extract payload
-        received_packets[sequence_number] = payload
+        
+        if sender_address[1] not in received_packets:
+            received_packets[sender_address[1]] = {}
+        else:
+            received_packets[sender_address[1]][sequence_number] = payload
+            
         curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         
-        # Fill summaryInfo for each sender
+        # Initialize summaryInfo for each sender
         if sender_address[1] not in summary_info:
             summary_info[sender_address[1]] = [0, 0]
             num_of_senders += 1
@@ -118,10 +128,11 @@ def main():
             print(f"length: {0}")
             print(f"payload: {0}\n\n")
             
-            print(f"Start: {start_time}, End: {end_time}\n")
+            #print(f"Start: {start_time}, End: {end_time}\n")
             duration = ((end_time) - (start_time)) * 1000
             average = math.ceil((summary_info[sender_address[1]][0]) / (duration))
             #average2 = (summary_info[sender_address[1]][0]) / (duration)
+            
             # summary
             print("Summary")
             print(f"sender addr: {sender_address[0]}:{sender_address[1]}")
@@ -130,20 +141,21 @@ def main():
             print(f"Average packets/second: {average}")
             print(f"Duration of the test: {duration} ms\n\n")
 
-            '''
-            sorted_packets = sorted(received_packets.items())
-            reassembled_file = b''.join(packet_payload for _, packet_payload in sorted_packets)
-            print("Sorted Packets:")
-            for seq_number, packet_payload in sorted_packets:
-                print(f"Sequence Number: {seq_number}, Payload: {packet_payload}")
+            # save to split.txt
+            sorted_packets = sorted(received_packets[sender_address[1]].items())
+            #print("Sorted packets: ", sorted_packets)
+            reassembled_data = b''.join(packet_payload for _, packet_payload in sorted_packets)
+            
+            #print("Sorted Packets:")
+            #for seq_number, packet_payload in sorted_packets:
+                #print(f"Sequence Number: {seq_number}, Payload: {packet_payload}")
 
             # Debugging: Print reassembled file content
-            print("Reassembled File Content:")
-            print(reassembled_file.decode())  # Assuming the content is in string format, adjust the decoding method accordingly if necessary
+            #print("Reassembled File Content:")
+            #print(reassembled_data.decode())  # Assuming the content is in string format, adjust the decoding method accordingly if necessary
 
             with open(file_option, "wb") as reassembled_file:
-                reassembled_file.write(reassembled_file)
-            '''
+                reassembled_file.write(reassembled_data)
 
             if num_of_ends == num_of_senders:
                 break
