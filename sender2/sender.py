@@ -4,6 +4,8 @@ import socket
 import time
 from datetime import datetime
 
+# TODO: Q7
+
 def main():
     '''
     Packet Type:   'D'
@@ -82,11 +84,64 @@ def main():
     
     # packet:
         # packet type (8 bit) | sequence number (32 bit) | length (32 bit) | payload (variable length)
+    #sock.settimeout(10)
+    #requestPacket = None
+    '''
+    try:
+        requestPacket, requestAddress = sock.recvfrom(1024)
+    except socket.timeout:
+        print("File not in sender")
+        sock.close()
+    '''
+    
     requestPacket, requestAddress = sock.recvfrom(1024)
     requestPacketType, requestSequenceNumber, requestLength = struct.unpack('!cII', requestPacket[:9])
     fileName = requestPacket[5:].decode()
-    
-    
+        
+     # SPLIT FILE INTO CHUNCKS FOR PACKETS
+    try:
+        filePart = []
+        with open(fileName, "rb") as file:
+            while True:
+                # read in chucks by length
+                chunk = file.read(length)
+                
+                # End of file
+                if not chunk:
+                    break
+                
+                filePart.append(chunk)
+    except FileNotFoundError:
+        print("File not found.")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(('localhost', port))
+        
+        packet_type = 'E'.encode()
+        packet_length = 0
+        sequence_number = 0
+        header = struct.pack('!cII', packet_type, sequence_number, packet_length)
+        payload = b''
+        
+        end_packet = header + payload
+        
+        # Send the END packet to the requester
+        sock.sendto(end_packet, ('localhost', requesterPort))
+        
+        # Print information about the END packet
+        curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        print(f"END Packet (File Not Found)")
+        print(f"send time: {curTime}")
+        print(f"requester addr: {socket.gethostname()}:{requesterPort}")
+        print(f"Sequence num: {sequence_number}")
+        print(f"length: {packet_length}")
+        print(f"payload: ''\n\n")
+        
+        # Close the socket and exit
+        sock.close()
+        sys.exit(1)
+
+
+    '''
     # SPLIT FILE INTO CHUNCKS FOR PACKETS
     
     filePart = []
@@ -100,6 +155,7 @@ def main():
                 break
             
             filePart.append(chunk)
+    '''
      
      
     # SEND DATA AND END PACKETS TO REQUESTER
@@ -143,7 +199,7 @@ def main():
     # Print what was sent
     print(f"END Packet")
     print(f"send time: {curTime}")
-    print(f"requester addr: {requesterPort}")
+    print(f"requester addr: {socket.gethostname()}:{requesterPort}")
     print(f"Sequence num: {seqNo}")
     print(f"length: {0}")
     print(f"payload: ""\n\n")

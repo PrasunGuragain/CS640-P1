@@ -73,7 +73,12 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('localhost', port))
     
+    print("Tracker info: ", tracker_info)
+    print("Tracker info, file option: ", tracker_info[file_option])
+    
     for part_info in tracker_info[file_option]:
+        print("Tracker info2: ", tracker_info)
+        print("Tracker info, file option2: ", tracker_info[file_option])
         sender_hostname = part_info["SenderHostname"]
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
@@ -95,6 +100,12 @@ def main():
     # received_packets[address] = {sequence number: payload}
     received_packets = {}
     
+    sender_order = []
+    
+    # empty file
+    with open(file_option, 'w') as file:
+        pass
+    
     while True:
         # Get packet from sender
         data, sender_address = sock.recvfrom(1024) 
@@ -103,8 +114,7 @@ def main():
         
         if sender_address[1] not in received_packets:
             received_packets[sender_address[1]] = {}
-        else:
-            received_packets[sender_address[1]][sequence_number] = payload
+            
             
         curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         
@@ -114,6 +124,7 @@ def main():
             num_of_senders += 1
 
         # Process the payload data as needed (writing to file, assembling file parts, etc.)
+    
 
         # Check for END packet and break the loop if received END packet for all senders
         if packet_type == b'E':
@@ -141,6 +152,8 @@ def main():
             print(f"Average packets/second: {average}")
             print(f"Duration of the test: {duration} ms\n\n")
 
+
+            #print(f"Received Packets: {received_packets}\n\n")
             # save to split.txt
             sorted_packets = sorted(received_packets[sender_address[1]].items())
             #print("Sorted packets: ", sorted_packets)
@@ -154,7 +167,16 @@ def main():
             #print("Reassembled File Content:")
             #print(reassembled_data.decode())  # Assuming the content is in string format, adjust the decoding method accordingly if necessary
 
-            with open(file_option, "wb") as reassembled_file:
+            #for i in sender_order:
+                #cur_sender = received_packets[sender_order]
+            #with open(file_option, "ab") as reassembled_file:
+                #reassembled_file.write(reassembled_data)
+            
+            #print(reassembled_data, sorted_packets, received_packets)
+            
+            
+            # add each payload to file
+            with open(file_option, "ab") as reassembled_file:
                 reassembled_file.write(reassembled_data)
 
             if num_of_ends == num_of_senders:
@@ -167,7 +189,8 @@ def main():
             print(f"sequence: {sequence_number}")
             print(f"length: {payload_length}")
             print(f"payload: {payload[:4]}\n\n")
-            
+           
+            received_packets[sender_address[1]][sequence_number] = payload
             # update total data packets and bytes
             summary_info[sender_address[1]][0] += 1
             summary_info[sender_address[1]][1] += payload_length
