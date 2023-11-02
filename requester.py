@@ -69,7 +69,7 @@ def main():
     # SEND REQUEST PACKET TO SERVER
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('localhost', port))
+    sock.bind(('0.0.0.0', port))
     
     
     for part_info in tracker_info[file_option]:
@@ -80,7 +80,7 @@ def main():
         request_packet = struct.pack('!cI', b'R', 0) + file_option.encode('utf-8')
         
         # Send the request packet to the sender
-        sock.sendto(request_packet, ('localhost', sender_port))
+        sock.sendto(request_packet, ('0.0.0.0', sender_port))
         
     
     # RECEIVE PACKETS FROM SERVER

@@ -75,7 +75,7 @@ def main():
     
     # Create a UDP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('localhost', port))
+    sock.bind(('0.0.0.0', port))
 
     
     # GET REQUEST PACKET FROM REQUESTER
@@ -103,7 +103,7 @@ def main():
     except FileNotFoundError:
         print("File not found.")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('localhost', port))
+        sock.bind(('0.0.0.0', port))
         
         packet_type = 'E'.encode()
         packet_length = 0
