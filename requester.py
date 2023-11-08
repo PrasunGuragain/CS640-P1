@@ -53,7 +53,30 @@ def main():
     else:
         print("File option argument (-o) is missing.")
         sys.exit(1)
+        
+    # f_hostname
+    if '-f' in sys.argv:
+        f = sys.argv.index('-f')
+        f_hostname = sys.argv[f + 1]
+    else:
+        print("f_hostname argument (-f) is missing.")
+        sys.exit(1)
+        
+    # f_port
+    if '-e' in sys.argv:
+        e = sys.argv.index('-e')
+        f_port = int(sys.argv[e + 1])
+    else:
+        print("f_port argument (-e) is missing.")
+        sys.exit(1)
     
+    # window
+    if '-w' in sys.argv:
+        w = sys.argv.index('-w')
+        window = int(sys.argv[w + 1])
+    else:
+        print("window argument (-w) is missing.")
+        sys.exit(1)
     
     # PARSE TRACKER
     
@@ -77,7 +100,7 @@ def main():
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
 
-        request_packet = struct.pack('!cI', b'R', 0) + file_option.encode('utf-8')
+        request_packet = struct.pack('!cI', b'R', window) + file_option.encode('utf-8')
         
         # Send the request packet to the sender
         sock.sendto(request_packet, ('0.0.0.0', sender_port))

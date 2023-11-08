@@ -72,6 +72,38 @@ def main():
     else:
         print("Length argument (-l) is missing.")
         sys.exit(1) 
+        
+    # f_hostname
+    if '-f' in sys.argv:
+        f = sys.argv.index('-f')
+        f_hostname = sys.argv[f + 1]
+    else:
+        print("f_hostname argument (-f) is missing.")
+        sys.exit(1)
+        
+    # f_port
+    if '-e' in sys.argv:
+        e = sys.argv.index('-e')
+        f_port = int(sys.argv[e + 1])
+    else:
+        print("f_port argument (-e) is missing.")
+        sys.exit(1)
+    
+    # priority
+    if '-i' in sys.argv:
+        i = sys.argv.index('-i')
+        priority = sys.argv[i + 1]
+    else:
+        print("priority argument (-i) is missing.")
+        sys.exit(1)
+    
+    # timeout
+    if '-t' in sys.argv:
+        t = sys.argv.index('-t')
+        timeout = sys.argv[t + 1]
+    else:
+        print("timeout argument (-t) is missing.")
+        sys.exit(1)
     
     # Create a UDP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -84,7 +116,7 @@ def main():
         # packet type (8 bit) | sequence number (32 bit) | length (32 bit) | payload (variable length)
     
     requestPacket, requestAddress = sock.recvfrom(5000)
-    requestPacketType, requestSequenceNumber, requestLength = struct.unpack('!cII', requestPacket[:9])
+    requestPacketType, requestSequenceNumber, window = struct.unpack('!cII', requestPacket[:9])
     fileName = requestPacket[5:].decode()
         
      # SPLIT FILE INTO CHUNCKS FOR PACKETS
