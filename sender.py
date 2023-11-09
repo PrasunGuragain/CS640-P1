@@ -4,6 +4,28 @@ import socket
 import time
 from datetime import datetime
 
+# TODO: Check create_packet function
+def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
+    priority_type = struct.pack('B', priority)
+    src_ip_address = struct.pack('', socket.gethostname())
+    src_port = struct.pack('H', s_port)
+    dest_ip_address = struct.pack('', d_address)
+    dest_port = struct.pack('H', d_port)
+    length1 = struct.pack('I', packet1_length)
+    
+    header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
+    
+    packetType = 'D'.encode()
+    packetLength = len(packet_part)
+    header2 = struct.pack('!cII', packetType, seqNo, packetLength)
+    
+    payload = header2 + packet_part
+    
+    packet = header1 + payload
+    
+    return packet
+    
+
 def main():
     '''
     Packet Type:   'D'
@@ -162,8 +184,51 @@ def main():
         sys.exit(1)
      
     # SEND DATA AND END PACKETS TO REQUESTER
-     
-    # Send Data packets
+    
+    # buffer each packet by window size
+    buffer = [[]]
+    cur_index = 0
+    cur_num_in_window = 0
+    for part in range(len(filePart)):
+        buffer[cur_index].append(filePart[part])
+        cur_num_in_window += 1
+        if cur_num_in_window == window:
+            cur_index += 1
+            cur_num_in_window = 0
+    
+    sock.setblocking(False)
+    list_of_packet_tuples = []
+    # Send Data packets by window size
+    for window_of_packets in buffer:
+        for packet_part in window_of_packets:
+            outer_length = 9 + length
+            packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo)
+            curTime = time.time()
+            packet_tuple = [packet, curTime, 1]
+            list_of_packet_tuples.append(packet_tuple)
+            sock.sendto(packet, (f_hostname, f_port))
+        # TODO finish this 
+        num_of_ack = 0
+        ack_received = [False] * window
+        while num_of_ack < window:
+            # once ack received for curr packet, then we remove it from window_of_packets
+            curTime = time.time()
+            for tuple in list_of_packet_tuples:
+                if tuple[2] == 5:
+                    list_of_packet_tuples.remove(tuple)
+                    continue
+                if curTime + timeout > tuple[1]:
+                    ack_packet, addr = sock.recvfrom(5000)
+                    if ack_packet is not None:
+                        # ACK received
+                        num_of_ack += 1
+                        list_of_packet_tuples.remove(tuple)
+                        pass
+                    else: 
+                        # ACT not received
+                        # resend packet
+                        tuple[2] += 1
+                        sock.sendto(packet, (f_hostname, f_port))
     for i in filePart:
         # Create a packet
         packetType = 'D'.encode()
