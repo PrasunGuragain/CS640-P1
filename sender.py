@@ -27,6 +27,7 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     
 
 def main():
+    # data packet
     '''
     Packet Type:   'D'
     Sequence Number: seqNo
@@ -34,7 +35,7 @@ def main():
     Payload: 'fileData'
     '''
     
-    #request packet
+    # request packet
     '''
     Packet Type:   'R'
     Sequence Number: 0
@@ -42,7 +43,7 @@ def main():
     Payload: 'file1.txt'
     '''
     
-    #end packet
+    # end packet
     '''
     Packet Type:   'E'
     Sequence Number: 
@@ -197,9 +198,13 @@ def main():
             cur_num_in_window = 0
     
     sock.setblocking(False)
-    list_of_packet_tuples = []
+    
     # Send Data packets by window size
     for window_of_packets in buffer:
+        
+        # we said tuples, but changed to lists, so its list of packet lists
+        list_of_packet_tuples = []
+        
         for packet_part in window_of_packets:
             outer_length = 9 + length
             packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo)
@@ -207,28 +212,53 @@ def main():
             packet_tuple = [packet, curTime, 1]
             list_of_packet_tuples.append(packet_tuple)
             sock.sendto(packet, (f_hostname, f_port))
-        # TODO finish this 
+            
         num_of_ack = 0
+        
+        # if we remove from list, it might effect the for loop, so we need this to keep track of which packets we received ACKs for
         ack_received = [False] * window
+        
+        # for each group of packets, wait for ACKs
         while num_of_ack < window:
+            
             # once ack received for curr packet, then we remove it from window_of_packets
             curTime = time.time()
-            for tuple in list_of_packet_tuples:
-                if tuple[2] == 5:
-                    list_of_packet_tuples.remove(tuple)
+            for index, tuple in enumerate(list_of_packet_tuples):
+                
+                # either we have already received an ACK for this packet, or we have resent 5 times
+                if ack_received[index]:
                     continue
+                
+                # if we already resent 5 times, then we remove it from the list
+                if tuple[2] == 5:
+                    # list_of_packet_tuples.remove(tuple)
+                    ack_received[index] = True
+                    
+                    # even though we didn't receive an ACK, we need this for the while loop to end
+                    num_of_ack += 1
+                    
+                    continue
+                
+                # if we have not resent 5 times, then we check if we need to resend
                 if curTime + timeout > tuple[1]:
                     ack_packet, addr = sock.recvfrom(5000)
+                    
+                    # after timeout amount, if we receive an ACK, then we remove it from the list
                     if ack_packet is not None:
+                        
                         # ACK received
                         num_of_ack += 1
-                        list_of_packet_tuples.remove(tuple)
+                        
+                        ack_received[index] = True
+                        
                         pass
                     else: 
-                        # ACT not received
-                        # resend packet
+                        # ACK not received, resend packet
                         tuple[2] += 1
                         sock.sendto(packet, (f_hostname, f_port))
+    
+    # STUFF BELOW IS OLD CODE, KEEPING FOR REFERENCE
+    
     for i in filePart:
         # Create a packet
         packetType = 'D'.encode()

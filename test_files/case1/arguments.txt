@@ -1,0 +1,2 @@
+python3 sender.py -p 7900 -g 7901 -r 1 -q 100 -l 100 > ../output/sender.txt
+python3 requester.py -p 7901 -o hello.txt

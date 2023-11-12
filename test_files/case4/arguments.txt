@@ -1,0 +1,2 @@
+python3 sender.py -p {7900 + sender_id} -g 7903 -r 1 -q 100 -l 100  # For each sender
+python3 requester.py -p 7903 -o hello.txt

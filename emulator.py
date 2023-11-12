@@ -24,9 +24,6 @@ def parse_packet(packet):
 
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
 
-
-
-
 def log_event(log, message):
     with open(log, 'a') as file:
         file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
@@ -90,18 +87,11 @@ def send(next_hop, delay, loss_probability, log, packet):
                 pass
             '''
 
-
-
-    
-
     if random.random() * 100 > loss_probability:
         time.sleep(delay / 1000)
         
         # send packet to next hop since no loss
         next_hop_key = (dest_ip_address, str(dest_port))
-        # 
-        
-        
     else:
         message = "loss event occurred"
         log_event(log, message)
@@ -171,16 +161,16 @@ emulator_hostname = socket.gethostname()
 
 forwarding_table = {}
 with open(filename, 'r') as file:
-        for line in file:
-            columns = line.strip().split()
-            emulator, e_port = columns[0:2]
-            destination, d_port = columns[2:4]
-            next_hop, next_port = columns[4:6]
-            delay = columns[6]
-            loss_probability = columns[7]
+    for line in file:
+        columns = line.strip().split()
+        emulator, e_port = columns[0:2]
+        destination, d_port = columns[2:4]
+        next_hop, next_port = columns[4:6]
+        delay = columns[6]
+        loss_probability = columns[7]
 
-            if emulator_hostname == emulator and port == e_port:
-                forwarding_table[(destination, d_port)] = [(next_hop, next_port), float(delay), float(loss_probability)]
+        if emulator_hostname == emulator and port == e_port:
+            forwarding_table[(destination, d_port)] = [(next_hop, next_port), float(delay), float(loss_probability)]
 
 
 priority_list = {"1": Queue(maxsize = queue_size), "2": Queue(maxsize = queue_size), "3": Queue(maxsize = queue_size)}

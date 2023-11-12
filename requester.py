@@ -5,6 +5,22 @@ from datetime import datetime
 import math
 import time
 
+def parse_packet(packet):
+    priority = struct.unpack('B', packet[:1])
+    src_ip_address = struct.unpack('4s', packet[1:5])
+    src_port = struct.unpack('H', packet[5:7])
+    dest_ip_address = struct.unpack('4s', packet[7:11])
+    dest_port = struct.unpack('H', packet[11:13])
+    length = struct.unpack('I', packet[13:17])
+
+    # payload
+    packet_type = struct.unpack('c', packet[17:18])
+    sequence_number = struct.unpack('I', packet[18:22])
+    payload_length = struct.unpack('I', packet[22:26])
+    payload = packet[26:26 + payload_length]
+
+    return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
+
 def parse_tracker(tracker_file_path):
     file_parts = {} 
     
@@ -106,7 +122,7 @@ def main():
         sock.sendto(request_packet, ('0.0.0.0', sender_port))
         
     
-    # RECEIVE PACKETS FROM SERVER
+    # RECEIVE PACKETS FROM SERVER AND SEND ACKS
     
     # summaryInfo[address] = [Total Data packets, Total Data bytes]
     summary_info = {}
@@ -126,8 +142,20 @@ def main():
     while True:
         # Get packet from sender
         data, sender_address = sock.recvfrom(1024) 
-        packet_type, sequence_number, payload_length = struct.unpack('!cII', data[:9])
-        payload = data[9:9 + payload_length]  # extract payload
+        priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(data)
+        
+        # TODO: sender might send the same packet multiple times, check if the packet is already received
+        
+        # Verify that the destination IP address in its received packet (data packets or end packets) is indeed its own IP address
+        if dest_ip_address != socket.gethostbyname(socket.gethostname()):
+            pass # What to do here?
+        
+        # Send ack to sender
+        ack_packet = struct.pack('!cII', b'A', sequence_number, 0)
+        sock.sendto(ack_packet, sender_address)
+        
+        # packet_type, sequence_number, payload_length = struct.unpack('!cII', data[:9])
+        payload = payload[9:9 + payload_length]  # extract payload
         
         if sender_address[1] not in received_packets:
             received_packets[sender_address[1]] = {}
@@ -143,7 +171,6 @@ def main():
 
         # Process the payload data as needed (writing to file, assembling file parts, etc.)
     
-
         # Check for END packet and break the loop if received END packet for all senders
         if packet_type == b'E':
             num_of_ends += 1
