@@ -160,6 +160,10 @@ def main():
                     break
                 
                 filePart.append(chunk)
+                print(f"")
+        print(f"\nfilePart: {filePart}\n")
+
+    
     except FileNotFoundError:
         print("File not found.")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -217,6 +221,8 @@ def main():
             packet_tuple = [packet, curTime, 1]
             list_of_packet_tuples.append(packet_tuple)
             sock.sendto(packet, (f_hostname, f_port))
+            print(f"\nf_hostname: {f_hostname}\nf_port: {f_port}\n")
+
             
         num_of_ack = 0
         

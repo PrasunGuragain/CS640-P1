@@ -5,6 +5,26 @@ from datetime import datetime
 import math
 import time
 
+def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
+    priority_type = struct.pack('B', priority)
+    src_ip_address = struct.pack('', socket.gethostname())
+    src_port = struct.pack('H', s_port)
+    dest_ip_address = struct.pack('', d_address)
+    dest_port = struct.pack('H', d_port)
+    length1 = struct.pack('I', packet1_length)
+    
+    header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
+    
+    packetType = 'D'.encode()
+    packetLength = len(packet_part)
+    header2 = struct.pack('!cII', packetType, seqNo, packetLength)
+    
+    payload = header2 + packet_part
+    
+    packet = header1 + payload
+    
+    return packet
+    
 def parse_packet(packet):
     priority = struct.unpack('B', packet[:1])
     src_ip_address = struct.unpack('4s', packet[1:5])
@@ -116,10 +136,12 @@ def main():
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
 
+        # request_packet = create_packet(1,port,sender_hostname, sender_port,0, )
         request_packet = struct.pack('!cI', b'R', window) + file_option.encode('utf-8')
         
         # Send the request packet to the sender
-        sock.sendto(request_packet, ('0.0.0.0', sender_port))
+        #print(f"f_hostname: {f_hostname}\nf_port: {f_port}")
+        sock.sendto(request_packet, (f_hostname, f_port))
         
     
     # RECEIVE PACKETS FROM SERVER AND SEND ACKS

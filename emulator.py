@@ -8,7 +8,19 @@ from queue import Queue
 # this list will have a list that contains [packet, delay_time_started]
 delayed_packets = []
 
+def parse_request_packet():
+    pass
+
 def parse_packet(packet):
+    # Check what type of packet this is
+
+    # if request packet
+    requestPacketType, requestSequenceNumber, requestLength = struct.unpack('!cII', packet[:9])
+    if requestPacket == 'R':
+        parse_request_packet()
+        return
+
+    # if not request packet
     priority = struct.unpack('B', packet[:1])
     src_ip_address = struct.unpack('4s', packet[1:5])
     src_port = struct.unpack('H', packet[5:7])
@@ -160,6 +172,8 @@ sock.setblocking(False)
 
 emulator_hostname = socket.gethostname()
 
+#print(f"emulator_hostname: {emulator_hostname}")
+
 # create a forwarding table: {(destination, d_port): [(next_hop, next_port), delay, loss_probability]}
 forwarding_table = {}
 with open(filename, 'r') as file:
@@ -181,11 +195,13 @@ while True:
     # Receive a packet
     try:
         try:
+            #print("Before sock.recvfrom")
             packet, addr = sock.recvfrom(5000)
             
-            print("IN EMULATOR")
+            #print("IN EMULATOR")
             
             # Parse the packet
+            #print(f"\n\nPacket: {packet}\n")
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
             
             # setting up priority queues, decide where it is to be forwarded
