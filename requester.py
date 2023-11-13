@@ -5,26 +5,35 @@ from datetime import datetime
 import math
 import time
 
-def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
-
-
-    # print parameters
-    print(f"Priority: {priority}")
-    print(f"Source IP Address: {s_port}")
-
-
+def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType):
+    # socket.inet_aton(requester_ip)
+    # msg = struct.pack('c l h l h I c I I')
 
     priority_type = struct.pack('B', priority)
-    src_ip_address = struct.pack('s', socket.gethostname().encode('utf-8'))
-
-    print(f"Source IP Address: {src_ip_address}")
-    print(f"socket.gethostname(): {socket.gethostname()}")
-    # print with encode
-    print(f"socket.gethostname().encode('utf-8'): {socket.gethostname().encode('utf-8')}")
-
-
+    priority_type = struct.pack('B', priority)
+    src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
     src_port = struct.pack('H', s_port)
-    dest_ip_address = struct.pack('s', d_address.encode('utf-8'))
+    dest_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(d_address)))
+    dest_port = struct.pack('H', d_port)
+    length1 = struct.pack('I', packet1_length)
+    
+    header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
+    
+    packetLength = len(packet_part)
+    print(f"Packet Length: {packetLength}")
+    header2 = struct.pack('!cII', packetType, seqNo, packetLength)
+    print(f"Header2: {header2}")
+    payload = header2 + packet_part.encode('utf-8')
+    
+    packet = header1 + payload
+    
+    return packet
+
+    '''
+    src_port = struct.pack('H', s_port)
+    # dest_ip_address = struct.pack('s', d_address.encode('utf-8'))
+    dest_ip_address = socket.inet_aton(socket.gethostbyname(d_address))
+
     dest_port = struct.pack('H', d_port)
     length1 = struct.pack('I', packet1_length)
     
@@ -51,6 +60,7 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     print(f"Payload: {packet_part}")
 
     return packet
+    '''
     
 def parse_packet(packet):
     priority = struct.unpack('B', packet[:1])
@@ -160,16 +170,15 @@ def main():
     
     
     for part_info in tracker_info[file_option]:
-        print(f"part_info: {part_info}")
+        #print(f"part_info: {part_info}")
         sender_hostname = part_info["SenderHostname"]
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
 
         # print 
-        print(f"sender_hostname: {sender_hostname}\nsender_port: {sender_port}\npart_id: {part_id}")
+        #print(f"sender_hostname: {sender_hostname}\nsender_port: {sender_port}\npart_id: {part_id}")
 
-        request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0)
-        #request_packet = struct.pack('!cI', b'R', window) + file_option.encode('utf-8')
+        request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0, 'R'.encode())
         
         # Send the request packet to the sender
         #print(f"f_hostname: {f_hostname}\nf_port: {f_port}")

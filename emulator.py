@@ -22,7 +22,6 @@ def parse_packet(packet):
         return
     '''
 
-    # if not request packet
     priority = struct.unpack('B', packet[:1])
     print(f"\npriority: {priority}\n")
     src_ip_address = struct.unpack('4s', packet[1:5])
@@ -42,6 +41,7 @@ def parse_packet(packet):
     sequence_number = struct.unpack('I', packet[18:22])
     print(f"\nsequence_number: {sequence_number}\n")
     payload_length = struct.unpack('I', packet[22:26])
+    # WE R PROBABLY READING A BIT OF PAYLOAD SO LEENGHT IS SO LONG
     print(f"\npayload_length: {payload_length}\n")
     payload = packet[26:26 + payload_length]
     print(f"\npayload: {payload}\n")
