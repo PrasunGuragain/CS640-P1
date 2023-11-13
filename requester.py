@@ -6,10 +6,25 @@ import math
 import time
 
 def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
+
+
+    # print parameters
+    print(f"Priority: {priority}")
+    print(f"Source IP Address: {s_port}")
+
+
+
     priority_type = struct.pack('B', priority)
-    src_ip_address = struct.pack('', socket.gethostname())
+    src_ip_address = struct.pack('s', socket.gethostname().encode('utf-8'))
+
+    print(f"Source IP Address: {src_ip_address}")
+    print(f"socket.gethostname(): {socket.gethostname()}")
+    # print with encode
+    print(f"socket.gethostname().encode('utf-8'): {socket.gethostname().encode('utf-8')}")
+
+
     src_port = struct.pack('H', s_port)
-    dest_ip_address = struct.pack('', d_address)
+    dest_ip_address = struct.pack('s', d_address.encode('utf-8'))
     dest_port = struct.pack('H', d_port)
     length1 = struct.pack('I', packet1_length)
     
@@ -19,10 +34,22 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     packetLength = len(packet_part)
     header2 = struct.pack('!cII', packetType, seqNo, packetLength)
     
-    payload = header2 + packet_part
+    payload = header2 + packet_part.encode('utf-8')
     
     packet = header1 + payload
-    
+    print(f"Packet: {packet}")
+    # print everythign
+    print(f"Priority: {priority}")
+    print(f"Source IP Address: {src_ip_address}")
+    print(f"Source Port: {src_port}")
+    print(f"Destination IP Address: {dest_ip_address}")
+    print(f"Destination Port: {dest_port}")
+    print(f"Length: {length1}")
+    print(f"Packet Type: {packetType}")
+    print(f"Sequence Number: {seqNo}")
+    print(f"Payload Length: {packetLength}")
+    print(f"Payload: {packet_part}")
+
     return packet
     
 def parse_packet(packet):
@@ -61,6 +88,7 @@ def parse_tracker(tracker_file_path):
                 if filename not in file_parts:
                     file_parts[filename] = []
                 file_parts[filename].append(part_info)
+        print(f"file_parts: {file_parts}")
                 
     # Sort file parts within each file entry based on their IDs
     for filename, parts in file_parts.items():
@@ -132,15 +160,22 @@ def main():
     
     
     for part_info in tracker_info[file_option]:
+        print(f"part_info: {part_info}")
         sender_hostname = part_info["SenderHostname"]
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
 
-        # request_packet = create_packet(1,port,sender_hostname, sender_port,0, )
-        request_packet = struct.pack('!cI', b'R', window) + file_option.encode('utf-8')
+        # print 
+        print(f"sender_hostname: {sender_hostname}\nsender_port: {sender_port}\npart_id: {part_id}")
+
+        request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0)
+        #request_packet = struct.pack('!cI', b'R', window) + file_option.encode('utf-8')
         
         # Send the request packet to the sender
         #print(f"f_hostname: {f_hostname}\nf_port: {f_port}")
+
+        # print 
+
         sock.sendto(request_packet, (f_hostname, f_port))
         
     

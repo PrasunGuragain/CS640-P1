@@ -12,6 +12,7 @@ def parse_request_packet():
     pass
 
 def parse_packet(packet):
+    '''
     # Check what type of packet this is
 
     # if request packet
@@ -19,20 +20,32 @@ def parse_packet(packet):
     if requestPacket == 'R':
         parse_request_packet()
         return
+    '''
 
     # if not request packet
     priority = struct.unpack('B', packet[:1])
+    print(f"\npriority: {priority}\n")
     src_ip_address = struct.unpack('4s', packet[1:5])
+    print(f"\nsrc_ip_address: {src_ip_address}\n")
     src_port = struct.unpack('H', packet[5:7])
+    print(f"\nsrc_port: {src_port}\n")
     dest_ip_address = struct.unpack('4s', packet[7:11])
+    print(f"\ndest_ip_address: {dest_ip_address}\n")
     dest_port = struct.unpack('H', packet[11:13])
+    print(f"\ndest_port: {dest_port}\n")
     length = struct.unpack('I', packet[13:17])
+    print(f"\nlength: {length}\n")
 
     # payload
     packet_type = struct.unpack('c', packet[17:18])
+    print(f"\npacket_type: {packet_type}\n")
     sequence_number = struct.unpack('I', packet[18:22])
+    print(f"\nsequence_number: {sequence_number}\n")
     payload_length = struct.unpack('I', packet[22:26])
+    print(f"\npayload_length: {payload_length}\n")
     payload = packet[26:26 + payload_length]
+    print(f"\npayload: {payload}\n")
+
 
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
 
@@ -198,10 +211,10 @@ while True:
             #print("Before sock.recvfrom")
             packet, addr = sock.recvfrom(5000)
             
-            #print("IN EMULATOR")
+            print("IN EMULATOR")
             
             # Parse the packet
-            #print(f"\n\nPacket: {packet}\n")
+            print(f"\n\nPacket: {packet}\n")
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
             
             # setting up priority queues, decide where it is to be forwarded
