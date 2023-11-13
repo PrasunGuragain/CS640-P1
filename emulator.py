@@ -183,6 +183,8 @@ while True:
         try:
             packet, addr = sock.recvfrom(5000)
             
+            print("IN EMULATOR")
+            
             # Parse the packet
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
             

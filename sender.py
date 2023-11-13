@@ -140,6 +140,11 @@ def main():
     
     requestPacket, requestAddress = sock.recvfrom(5000)
     requestPacketType, requestSequenceNumber, window = struct.unpack('!cII', requestPacket[:9])
+    
+    print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", requestPacketType, " requestSequenceNumber: ", requestSequenceNumber)
+    sock.close()
+    sys.exit(1)
+    
     fileName = requestPacket[5:].decode()
         
      # SPLIT FILE INTO CHUNCKS FOR PACKETS
