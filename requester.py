@@ -10,19 +10,19 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     # msg = struct.pack('c l h l h I c I I')
 
     priority_type = struct.pack('B', priority)
-    priority_type = struct.pack('B', priority)
     src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
+    #src_ip_address = struct.pack('s', socket.gethostname().encode('utf-8'))
     src_port = struct.pack('H', s_port)
     dest_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(d_address)))
+    #dest_ip_address = struct.pack('s', d_address.encode('utf-8'))
     dest_port = struct.pack('H', d_port)
     length1 = struct.pack('I', packet1_length)
     
     header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
     
     packetLength = len(packet_part)
-    print(f"Packet Length: {packetLength}")
     header2 = struct.pack('!cII', packetType, seqNo, packetLength)
-    print(f"Header2: {header2}")
+    #print(f"Header2: {struct.unpack('!cII', header2)}")
     payload = header2 + packet_part.encode('utf-8')
     
     packet = header1 + payload
@@ -98,7 +98,6 @@ def parse_tracker(tracker_file_path):
                 if filename not in file_parts:
                     file_parts[filename] = []
                 file_parts[filename].append(part_info)
-        print(f"file_parts: {file_parts}")
                 
     # Sort file parts within each file entry based on their IDs
     for filename, parts in file_parts.items():
@@ -108,6 +107,8 @@ def parse_tracker(tracker_file_path):
 
 def main():
     # PARSE COMMAND LINE ARGUMENTS
+    
+    #print(socket.gethostbyname(socket.gethostname()))
     
     # port
     if '-p' in sys.argv:
@@ -170,21 +171,16 @@ def main():
     
     
     for part_info in tracker_info[file_option]:
-        #print(f"part_info: {part_info}")
         sender_hostname = part_info["SenderHostname"]
+        #print(f"Sender Hostname: {sender_hostname}")
+        # print type of sender_hostname
+        #print(f"Type of sender_hostname: {type(sender_hostname)}")
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
-
-        # print 
-        #print(f"sender_hostname: {sender_hostname}\nsender_port: {sender_port}\npart_id: {part_id}")
 
         request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0, 'R'.encode())
         
         # Send the request packet to the sender
-        #print(f"f_hostname: {f_hostname}\nf_port: {f_port}")
-
-        # print 
-
         sock.sendto(request_packet, (f_hostname, f_port))
         
     
