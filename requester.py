@@ -11,10 +11,8 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
 
     priority_type = struct.pack('B', priority)
     src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
-    #src_ip_address = struct.pack('s', socket.gethostname().encode('utf-8'))
     src_port = struct.pack('H', s_port)
     dest_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(d_address)))
-    #dest_ip_address = struct.pack('s', d_address.encode('utf-8'))
     dest_port = struct.pack('H', d_port)
     length1 = struct.pack('I', packet1_length)
     
@@ -22,45 +20,11 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     
     packetLength = len(packet_part)
     header2 = struct.pack('!cII', packetType, seqNo, packetLength)
-    #print(f"Header2: {struct.unpack('!cII', header2)}")
     payload = header2 + packet_part.encode('utf-8')
     
     packet = header1 + payload
     
     return packet
-
-    '''
-    src_port = struct.pack('H', s_port)
-    # dest_ip_address = struct.pack('s', d_address.encode('utf-8'))
-    dest_ip_address = socket.inet_aton(socket.gethostbyname(d_address))
-
-    dest_port = struct.pack('H', d_port)
-    length1 = struct.pack('I', packet1_length)
-    
-    header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
-    
-    packetType = 'D'.encode()
-    packetLength = len(packet_part)
-    header2 = struct.pack('!cII', packetType, seqNo, packetLength)
-    
-    payload = header2 + packet_part.encode('utf-8')
-    
-    packet = header1 + payload
-    print(f"Packet: {packet}")
-    # print everythign
-    print(f"Priority: {priority}")
-    print(f"Source IP Address: {src_ip_address}")
-    print(f"Source Port: {src_port}")
-    print(f"Destination IP Address: {dest_ip_address}")
-    print(f"Destination Port: {dest_port}")
-    print(f"Length: {length1}")
-    print(f"Packet Type: {packetType}")
-    print(f"Sequence Number: {seqNo}")
-    print(f"Payload Length: {packetLength}")
-    print(f"Payload: {packet_part}")
-
-    return packet
-    '''
     
 def parse_packet(packet):
     priority = struct.unpack('B', packet[:1])
@@ -107,8 +71,6 @@ def parse_tracker(tracker_file_path):
 
 def main():
     # PARSE COMMAND LINE ARGUMENTS
-    
-    #print(socket.gethostbyname(socket.gethostname()))
     
     # port
     if '-p' in sys.argv:
@@ -172,9 +134,6 @@ def main():
     
     for part_info in tracker_info[file_option]:
         sender_hostname = part_info["SenderHostname"]
-        #print(f"Sender Hostname: {sender_hostname}")
-        # print type of sender_hostname
-        #print(f"Type of sender_hostname: {type(sender_hostname)}")
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
 

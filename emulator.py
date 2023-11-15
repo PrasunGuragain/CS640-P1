@@ -12,24 +12,10 @@ def parse_request_packet():
     pass
 
 def parse_packet(packet):
-    '''
-    # Check what type of packet this is
-
-    # if request packet
-    requestPacketType, requestSequenceNumber, requestLength = struct.unpack('!cII', packet[:9])
-    if requestPacket == 'R':
-        parse_request_packet()
-        return
-    '''
-
     priority = struct.unpack('B', packet[:1])[0]
     src_ip_address = socket.inet_ntoa(struct.unpack('4s', packet[1:5])[0])
-    #src_ip_address = struct.unpack('4s', packet[1:5])[0]
-    #print(f"src_ip_address: {src_ip_address}")
     src_port = struct.unpack('H', packet[5:7])[0]
     dest_ip_address = socket.inet_ntoa(struct.unpack('4s', packet[7:11])[0])
-    #dest_ip_address = struct.unpack('4s', packet[7:11])[0]
-    #print(f"dest_ip_address: {dest_ip_address}")
     dest_port = struct.unpack('H', packet[11:13])[0]
     length = struct.unpack('I', packet[13:17])[0]
 
@@ -40,20 +26,6 @@ def parse_packet(packet):
     #payload_length = struct.unpack('I', packet[22:26])
     payload = packet[26:]
     payload_length = len(payload)
-    
-    '''
-    #print all variables
-    print("priority: ", priority)
-    print("src_ip_address: ", src_ip_address)
-    print("src_port: ", src_port)
-    print("dest_ip_address: ", dest_ip_address)
-    print("dest_port: ", dest_port)
-    print("length: ", length)
-    print("packet_type: ", packet_type)
-    print("sequence_number: ", sequence_number)
-    print("payload_length: ", payload_length)
-    print("payload: ", payload)
-    '''
 
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
 
@@ -73,8 +45,6 @@ def send(next_hop, delay, loss_probability, log, packet):
             loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
 
             # delay send
-            
-            print("HERE2")
 
             # 4. If a packet is currently being delayed and the delay has not expired, goto Step 1.
             if delayed_packets != []:
@@ -82,8 +52,6 @@ def send(next_hop, delay, loss_probability, log, packet):
                     if time.time() - delayed[1] > delay / 1000:
 
                         # send packet to next hop, drop if loss
-                        
-                        print("HERE")
                         
                         # 7. Otherwise, send the packet to the proper next hop.
                         if random.random() * 100 > loss_probability:
@@ -97,41 +65,8 @@ def send(next_hop, delay, loss_probability, log, packet):
                             # remove packet from priority queue
                             priority_list[priority].get()
             else:
-                # 5. If no packet is currently being delayed, select the packet at the front of the queue with highest priority, remove that packet from the queue and delay it,
-                #priority_list[priority].get()
+                # 5. If no packet is currently being delayed, select the packet at the front of the queue with highest priority, remove that packet from the queue and delay it
                 delayed_packets.append( [packet, time.time()])
-
-            '''
-            time.sleep(delay / 1000)
-            get_current_time = time.time();
-            if get_current_time - priority_list[priority][1] < delay / 1000:
-                return
-            
-
-            # send packet to next hop
-            # drop if loss
-            if random.random() * 100 > loss_probability:
-                sock.sendto(packet, next_hop_key)
-            else:
-                message = "loss event occurred"
-                log_event(log, message)
-                # remove packet from priority queue
-                priority_list[priority].get()
-                
-                pass
-            '''
-            
-    '''
-    if random.random() * 100 > loss_probability:
-        time.sleep(delay / 1000)
-        
-        #send packet to next hop since no loss
-        next_hop_key = (dest_ip_address, str(dest_port))
-    else:
-        message = "loss event occurred"
-        log_event(log, message)
-        pass
-    '''
     
 def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet):
     dest_found = False
@@ -210,16 +145,8 @@ with open(filename, 'r') as file:
         delay = columns[6]
         loss_probability = columns[7]
         
-        # print everything
-        #print(f"Emulator: {emulator}, Port: {e_port}, Destination: {destination}, Destination Port: {d_port}, Next Hop: {next_hop}, Next Port: {next_port}, Delay: {delay}, Loss Probability: {loss_probability}")
-        #print(f"Emulator: {type(emulator_hostname)}, emulator: {type(emulator)}, Port: {type(port)}, e_port: {type(e_port)}")
         if (emulator_hostname == emulator) and (str(port) == e_port):
-            # print everything in the if statement
-            #print(f"Emulator: {emulator_hostname}, emulator: {emulator}, Port: {port}, e_port: {e_port}")
-            #print("IN IF STATEMENT")
             forwarding_table[(destination, d_port)] = [(next_hop, next_port), float(delay), float(loss_probability)]
-
-#print(forwarding_table)
 
 priority_list = {1: Queue(maxsize = queue_size), 2: Queue(maxsize = queue_size), 3: Queue(maxsize = queue_size)}
 
@@ -227,9 +154,8 @@ while True:
     
     # Receive a packet
     try:
-        # TODO: Keep this try catch but do it a bit different way (like how chat gpt said)
+        # TODO: Keep second try catch but do it a bit different way (like how chat gpt said)
         #try:
-        print("Listening")
         packet, addr = sock.recvfrom(5000)
 
         # Parse the packet
@@ -264,4 +190,3 @@ while True:
     except KeyboardInterrupt:
             socket.close()
             sys.exit(0)
-
