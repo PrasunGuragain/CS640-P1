@@ -32,11 +32,63 @@ def parse_packet(packet):
 def log_event(log, message):
     with open(log, 'a') as file:
         file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
-
-def send(next_hop, delay, loss_probability, log, packet):
+        
+def send_helper():
+     # 4. If a packet is currently being delayed and the delay has not expired, goto Step 1.
+     
+    # if a packet is currently being delayed
+    if delayed_packets != []:
+        for delayed in delayed_packets:
+            # if delay has expired
+            if time.time() - delayed[1] > delay / 1000:
+                                        
+                # send packet to next hop, drop if loss
+                
+                # get the packet infos
+                current_packet = delayed[0]
+                priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet[0])
+                
+                next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
+                delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
+                loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
+                
+                # 7. Otherwise, send the packet to the proper next hop.
+                if random.random() * 100 > loss_probability:
+                    sock.sendto(current_packet, next_hop_key)
+                    delayed_packets.remove(delayed)
+                    
+                    return
+                else:
+                    # 6. When the delay expires, randomly determine whether to drop the packet
+                    message = "loss event occurred"
+                    log_event(log, message)
+                    
+                    # remove packet from priority queue
+                    priority_list[priority].get()
+                    
+                    return
+    else:
+        # 5. If no packet is currently being delayed
+        
+        # select the packet at the front of the queue with highest priority
+        for priority in priority_list.keys():
+            if not priority_list[priority].empty():
+                highest_priority_packet = priority_list[priority].queue[0]
+                
+                # remove that packet from the queue
+                priority_list[priority].get()
+                
+                # delay it
+                delayed_packets.append( [highest_priority_packet, time.time()])
+                
+                break
+        
+'''
+def send():
     for priority in priority_list.keys():
         if not priority_list[priority].empty():
-            packet = priority_list[priority].get()
+            # get the next item in queue without removing it
+            packet = priority_list[priority].queue[0]
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet[0])
 
             # find next hop in fowarding table for dest_ip_address, dest_port
@@ -47,16 +99,21 @@ def send(next_hop, delay, loss_probability, log, packet):
             # delay send
 
             # 4. If a packet is currently being delayed and the delay has not expired, goto Step 1.
+            
+            # if a packet is currently being delayed
             if delayed_packets != []:
                 for delayed in delayed_packets:
+                    
+                    # if delay has expired
                     if time.time() - delayed[1] > delay / 1000:
-
+                                                
                         # send packet to next hop, drop if loss
                         
                         # 7. Otherwise, send the packet to the proper next hop.
                         if random.random() * 100 > loss_probability:
                             sock.sendto(delayed[0], next_hop_key)
                             delayed_packets.remove(delayed)
+                            return
                         else:
                             # 6. When the delay expires, randomly determine whether to drop the packet
                             message = "loss event occurred"
@@ -64,20 +121,30 @@ def send(next_hop, delay, loss_probability, log, packet):
                             
                             # remove packet from priority queue
                             priority_list[priority].get()
+                            
+                            return
             else:
                 # 5. If no packet is currently being delayed, select the packet at the front of the queue with highest priority, remove that packet from the queue and delay it
-                delayed_packets.append( [packet, time.time()])
-    
+                delayed_packets.append( [packet, time.time()])             
+'''    
+
 def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet):
     dest_found = False
     
-    # 2 Once you receive a packet, decide whether packet is to be forwarded by consulting the forwarding table,
+    # 2 Once you receive a packet, decide whether packet is to be forwarded by consulting the forwarding table
     if (dest_ip_address,str(dest_port)) in forwarding_table:
         
         # if packet is valid ie destination is found in fowarding table, then add it to priority queue
         get_current_time = time.time()
         packet_value = (packet, get_current_time)
-        priority_list[priority].put(packet_value)
+        
+        # This queue size is specified on the command line of the emulator startup. 
+        # If a queue is full, the packet is dropped and this event is logged
+        if priority_list[priority].full():
+            message = "queue full"
+            log_event(log, message)
+        else:
+            priority_list[priority].put(packet_value)
         
         # send(next_hop, delay, loss_probability, sock, log)
         dest_found = True
@@ -154,38 +221,46 @@ while True:
     
     # Receive a packet
     try:
-        # TODO: Keep second try catch but do it a bit different way (like how chat gpt said)
-        #try:
-        packet, addr = sock.recvfrom(5000)
+        # Receive packet from network in a non-blocking way. This means that you should not wait/get blocked in the recvfrom function until you get a packet. Check if you have received a packet; If not jump to 4,
+        try:
+            packet, addr = sock.recvfrom(5000)
 
-        # Parse the packet
-        priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
-        
-        # setting up priority queues, decide where it is to be forwarded
-        routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
-        
-        # get all the values from the forwarding table
-        
-        for key, value in forwarding_table.items():
-            destination, d_port = key
-            next_hop, next_port = value[0]
-            delay = value[1]
-            loss_probability = value[2]
-
-            #print(f"Emulator: {emulator_hostname}, Port: {port}, Destination: {destination}, Destination Port: {d_port}, Next Hop: {next_hop}, Next Port: {next_port}, Delay: {delay}, Loss Probability: {loss_probability}")
-        
-        next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-        delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
-        loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
-        
-        send(next_hop_key, delay, loss_probability, log, packet)
-        '''   
+            # Parse the packet
+            priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
+            
+            # setting up priority queues, decide where it is to be forwarded
+            routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
+            
+            send_helper()
+            
+            '''
+            for key, value in forwarding_table.items():
+                destination, d_port = key
+                next_hop, next_port = value[0]
+                delay = value[1]
+                loss_probability = value[2]
+            
+            # get all the values from the forwarding table
+            next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
+            delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
+            loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
+            '''
         except BlockingIOError:
-            # No data available, wait for a short duration and then try again
-            print("Sleeping")
-            time.sleep(1)
-            continue
-        ''' 
+            # Have not received a packet, 2.3 Forwarding Summary step 4
+            # Check if there are delayed packets
+            send_helper()
+            
+            '''
+            if delayed_packets:
+                current_time = time.time()
+                
+                # Check if a packet 
+            next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
+            delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
+            loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
+            
+            send(next_hop_key, delay, loss_probability, log, packet)
+            '''
             
     except KeyboardInterrupt:
             socket.close()
