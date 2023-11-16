@@ -23,7 +23,10 @@ def parse_packet(packet):
     packet_type = struct.unpack('c', packet[17:18])[0]
     sequence_number = struct.unpack('I', packet[18:22])[0]
     # TODO: it is not reading payload_length correctly
-    #payload_length = struct.unpack('I', packet[22:26])
+    # in request packet, the window size
+    payload_length = struct.unpack('I', packet[22:26])
+    print(payload_length)
+    sys.exit(1)
     payload = packet[26:]
     payload_length = len(payload)
 
@@ -41,9 +44,6 @@ def send_helper():
         for delayed in delayed_packets:
             # get the packet infos
             current_packet, delay_start_time = delayed
-            print(current_packet)
-            print(delay_start_time)
-            sys.exit(1)
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(current_packet)
             
             next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
@@ -56,7 +56,14 @@ def send_helper():
                 
                 # 7. Otherwise, send the packet to the proper next hop.
                 if random.random() * 100 > loss_probability:
-                    sock.sendto(current_packet, next_hop_key)
+                    #next_hop_key_int = (socket.inet_ntoa(next_hop_key[0]), int(next_hop_key[1]))
+                    destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
+                    # print destination_address, destination_port
+                    #print(destination_address, destination_port)
+                    #destination_address_str = socket.inet_ntoa(destination_address)
+                    #next_hop_key_int = (destination_address_str, destination_port)
+                    
+                    sock.sendto(current_packet, (destination_address, destination_port))   
                     delayed_packets.remove(delayed)
                     
                     return
@@ -82,6 +89,7 @@ def send_helper():
                 
                 # delay it
                 delayed_packets.append( [highest_priority_packet, time.time()])
+                # delayed_packets.append(highest_priority_packet)
                 
                 break   
 
@@ -101,7 +109,7 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
             message = "queue full"
             log_event(log, message)
         else:
-            priority_list[priority].put(packet_value)
+            priority_list[priority].put(packet)
         
         # send(next_hop, delay, loss_probability, sock, log)
         dest_found = True

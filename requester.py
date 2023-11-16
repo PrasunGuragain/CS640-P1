@@ -5,7 +5,7 @@ from datetime import datetime
 import math
 import time
 
-def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType):
+def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType, packetLength):
     # socket.inet_aton(requester_ip)
     # msg = struct.pack('c l h l h I c I I')
 
@@ -18,7 +18,7 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     
     header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
     
-    packetLength = len(packet_part)
+    #packetLength = len(packet_part)
     header2 = struct.pack('!cII', packetType, seqNo, packetLength)
     payload = header2 + packet_part.encode('utf-8')
     
@@ -137,7 +137,8 @@ def main():
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
 
-        request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0, 'R'.encode())
+        print(window)
+        request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0, 'R'.encode(), window)
         
         # Send the request packet to the sender
         sock.sendto(request_packet, (f_hostname, f_port))

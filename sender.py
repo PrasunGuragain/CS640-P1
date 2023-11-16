@@ -4,6 +4,24 @@ import socket
 import time
 from datetime import datetime
 
+def parse_packet(packet):
+    priority = struct.unpack('B', packet[:1])[0]
+    src_ip_address = socket.inet_ntoa(struct.unpack('4s', packet[1:5])[0])
+    src_port = struct.unpack('H', packet[5:7])[0]
+    dest_ip_address = socket.inet_ntoa(struct.unpack('4s', packet[7:11])[0])
+    dest_port = struct.unpack('H', packet[11:13])[0]
+    length = struct.unpack('I', packet[13:17])[0]
+
+    # payload
+    packet_type = struct.unpack('c', packet[17:18])[0]
+    sequence_number = struct.unpack('I', packet[18:22])[0]
+    # TODO: it is not reading payload_length correctly
+    #payload_length = struct.unpack('I', packet[22:26])
+    payload = packet[26:]
+    payload_length = len(payload)
+
+    return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
+
 # TODO: Check create_packet function
 def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
     priority_type = struct.pack('B', priority)
@@ -139,11 +157,9 @@ def main():
         # packet type (8 bit) | sequence number (32 bit) | length (32 bit) | payload (variable length)
     
     requestPacket, requestAddress = sock.recvfrom(5000)
-    requestPacketType, requestSequenceNumber, window = struct.unpack('!cII', requestPacket[:9])
-    
+    #requestPacketType, requestSequenceNumber, window = struct.unpack('!cII', requestPacket[:9])
+    priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(requestPacket)
     print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", requestPacketType, " requestSequenceNumber: ", requestSequenceNumber)
-    sock.close()
-    sys.exit(1)
     
     fileName = requestPacket[5:].decode()
         
