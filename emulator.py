@@ -39,18 +39,20 @@ def send_helper():
     # if a packet is currently being delayed
     if delayed_packets != []:
         for delayed in delayed_packets:
+            # get the packet infos
+            current_packet, delay_start_time = delayed
+            print(current_packet)
+            print(delay_start_time)
+            sys.exit(1)
+            priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(current_packet)
+            
+            next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
+            delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
+            loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
+                
             # if delay has expired
             if time.time() - delayed[1] > delay / 1000:
-                                        
                 # send packet to next hop, drop if loss
-                
-                # get the packet infos
-                current_packet = delayed[0]
-                priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet[0])
-                
-                next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-                delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
-                loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
                 
                 # 7. Otherwise, send the packet to the proper next hop.
                 if random.random() * 100 > loss_probability:
@@ -81,52 +83,7 @@ def send_helper():
                 # delay it
                 delayed_packets.append( [highest_priority_packet, time.time()])
                 
-                break
-        
-'''
-def send():
-    for priority in priority_list.keys():
-        if not priority_list[priority].empty():
-            # get the next item in queue without removing it
-            packet = priority_list[priority].queue[0]
-            priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet[0])
-
-            # find next hop in fowarding table for dest_ip_address, dest_port
-            next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-            delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
-            loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
-
-            # delay send
-
-            # 4. If a packet is currently being delayed and the delay has not expired, goto Step 1.
-            
-            # if a packet is currently being delayed
-            if delayed_packets != []:
-                for delayed in delayed_packets:
-                    
-                    # if delay has expired
-                    if time.time() - delayed[1] > delay / 1000:
-                                                
-                        # send packet to next hop, drop if loss
-                        
-                        # 7. Otherwise, send the packet to the proper next hop.
-                        if random.random() * 100 > loss_probability:
-                            sock.sendto(delayed[0], next_hop_key)
-                            delayed_packets.remove(delayed)
-                            return
-                        else:
-                            # 6. When the delay expires, randomly determine whether to drop the packet
-                            message = "loss event occurred"
-                            log_event(log, message)
-                            
-                            # remove packet from priority queue
-                            priority_list[priority].get()
-                            
-                            return
-            else:
-                # 5. If no packet is currently being delayed, select the packet at the front of the queue with highest priority, remove that packet from the queue and delay it
-                delayed_packets.append( [packet, time.time()])             
-'''    
+                break   
 
 def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet):
     dest_found = False
