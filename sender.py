@@ -158,20 +158,19 @@ def main():
         # packet type (8 bit) | sequence number (32 bit) | length (32 bit) | payload (variable length)
     
     requestPacket, requestAddress = sock.recvfrom(5000)
-    #requestPacketType, requestSequenceNumber, window = struct.unpack('!cII', requestPacket[:9])
 
     priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(requestPacket)
-    print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", packet_type, " requestSequenceNumber: ", sequence_number)
+    
+    # print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", packet_type, " requestSequenceNumber: ", sequence_number)
     
     fileName = payload.decode()
-    print(f"FileName: {fileName}")
+    
+    # print(f"FileName: {fileName}")
         
      # SPLIT FILE INTO CHUNCKS FOR PACKETS
     try:
         filePart = []
-        # print(f"PATH: {os.system('ls -l')}")
         with open(fileName, "r") as file:
-            # print(f"file: {file}")
             while True:
                 # read in chucks by length
                 chunk = file.read(length_chunk)
@@ -181,11 +180,7 @@ def main():
                 
                 filePart.append(chunk)
 
-                # print(f"")
-            print(f"\nfilePart: {filePart}\n")
-
-
-    
+            # print(f"\nfilePart: {filePart}\n")
     except FileNotFoundError:
         print("File not found.")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -223,23 +218,13 @@ def main():
     buffer = [[] for i in range(math.ceil(len(filePart) / window))]
     cur_index = 0
     cur_num_in_window = 0
-    # print len buffer
-    # print filePart
     for part in range(len(filePart)):
-        # print(f"part: {part}")
         buffer[cur_index].append(filePart[part])
         cur_num_in_window += 1
         if cur_num_in_window == window:
             cur_index += 1
             cur_num_in_window = 0
-            
 
-        # print(f"cur_num_in_window: {cur_num_in_window}")
-        # print(f"cur_index: {cur_index}")
-        # print(f"buffer: {buffer}")
-        # print(f"window: {window}")
-
-    
     sock.setblocking(False)
     
     # Send Data packets by window size
@@ -255,12 +240,10 @@ def main():
             packet_tuple = [packet, curTime, 1]
             list_of_packet_tuples.append(packet_tuple)
             sock.sendto(packet, (f_hostname, f_port))
-            # print detailed debugging statment
-            print(f"Packet: {packet} sent to {f_hostname}:{f_port}")
-
-
-
             
+            # print detailed debugging statment
+            # print(f"Packet: {packet} sent to {f_hostname}:{f_port}")
+
         num_of_ack = 0
         
         # if we remove from list, it might effect the for loop, so we need this to keep track of which packets we received ACKs for
@@ -288,8 +271,7 @@ def main():
                     continue
                 
                 # if we have not resent 5 times, then we check if we need to resend
-
-
+                curTime = time.time()
                 if curTime + timeout > tuple[1]:
                     try:
                         ack_packet, addr = sock.recvfrom(5000)
@@ -307,7 +289,8 @@ def main():
                         # ACK not received, resend packet
                         tuple[2] += 1
                         sock.sendto(packet, (f_hostname, f_port))
-                        print(f"Packet: {packet} RESENT to {f_hostname}:{f_port}")
+                        
+                        # print(f"Packet: {packet} RESENT to {f_hostname}:{f_port}")
     
     # STUFF BELOW IS OLD CODE, KEEPING FOR REFERENCE
     

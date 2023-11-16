@@ -55,16 +55,13 @@ def send_helper():
                 
                 # 7. Otherwise, send the packet to the proper next hop.
                 if random.random() * 100 > loss_probability:
-                    #next_hop_key_int = (socket.inet_ntoa(next_hop_key[0]), int(next_hop_key[1]))
                     destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
-                    # print destination_address, destination_port
-                    #print(destination_address, destination_port)
-                    #destination_address_str = socket.inet_ntoa(destination_address)
-                    #next_hop_key_int = (destination_address_str, destination_port)
                     
-                    sock.sendto(current_packet, (destination_address, destination_port))   
+                    sock.sendto(current_packet, (destination_address, destination_port))  
+                     
                     # print packet and destination
-                    print(f"Packet: {current_packet} is sent to {destination_address}:{destination_port}\n")
+                    # print(f"Packet: {current_packet} is sent to {destination_address}:{destination_port}\n")
+                    
                     delayed_packets.remove(delayed)
                     
                     return

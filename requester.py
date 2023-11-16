@@ -139,7 +139,8 @@ def main():
         
         # Send the request packet to the sender
         sock.sendto(request_packet, (f_hostname, f_port))
-        print(f"Request packet sent to {sender_hostname}:{sender_port} for part {part_id} of {file_option}")
+        
+        # print(f"Request packet sent to {sender_hostname}:{sender_port} for part {part_id} of {file_option}")
         
     
     # RECEIVE PACKETS FROM SERVER AND SEND ACKS
@@ -173,6 +174,7 @@ def main():
         # Send ack to sender
         # ack_packet = struct.pack('!cII', b'A', sequence_number, 0)
         # create ack packet
+        
         # def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType, packetLength):
         ack_packet = create_packet(1,port,sender_hostname, sender_port, 0, "", sequence_number, 'A'.encode(), 0)
 
@@ -184,10 +186,8 @@ def main():
         if sender_address[1] not in received_packets:
             received_packets[sender_address[1]] = {}
             
-            
         curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-        
         # Initialize summaryInfo for each sender
         if sender_address[1] not in summary_info:
             summary_info[sender_address[1]] = [0, 0]
@@ -236,6 +236,7 @@ def main():
             if num_of_ends == len(tracker_info[file_option]):
                 break
         else:
+            '''
             # Print data receipt information
             print("DATA Packet")
             print(f"recv time: {curTime}")
@@ -243,6 +244,7 @@ def main():
             print(f"sequence: {sequence_number}")
             print(f"length: {payload_length}")
             print(f"payload: {payload.decode()[:4]}\n")
+            '''
            
             received_packets[sender_address[1]][sequence_number] = payload
             # update total data packets and bytes
