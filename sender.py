@@ -3,6 +3,7 @@ import sys
 import socket
 import time
 from datetime import datetime
+import math
 
 def parse_packet(packet):
     priority = struct.unpack('B', packet[:1])[0]
@@ -25,9 +26,9 @@ def parse_packet(packet):
 # TODO: Check create_packet function
 def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
     priority_type = struct.pack('B', priority)
-    src_ip_address = struct.pack('', socket.gethostname())
+    src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
     src_port = struct.pack('H', s_port)
-    dest_ip_address = struct.pack('', d_address)
+    dest_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(d_address)))
     dest_port = struct.pack('H', d_port)
     length1 = struct.pack('I', packet1_length)
     
@@ -37,7 +38,7 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     packetLength = len(packet_part)
     header2 = struct.pack('!cII', packetType, seqNo, packetLength)
     
-    payload = header2 + packet_part
+    payload = header2 + packet_part.encode('utf-8')
     
     packet = header1 + payload
     
@@ -109,7 +110,7 @@ def main():
     # Length
     if '-l' in sys.argv:
         l = sys.argv.index('-l')
-        length = int(sys.argv[l + 1])
+        length_chunk = int(sys.argv[l + 1])
     else:
         print("Length argument (-l) is missing.")
         sys.exit(1) 
@@ -158,26 +159,31 @@ def main():
     
     requestPacket, requestAddress = sock.recvfrom(5000)
     #requestPacketType, requestSequenceNumber, window = struct.unpack('!cII', requestPacket[:9])
-    priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(requestPacket)
-    print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", requestPacketType, " requestSequenceNumber: ", requestSequenceNumber)
+
+    priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(requestPacket)
+    print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", packet_type, " requestSequenceNumber: ", sequence_number)
     
-    fileName = requestPacket[5:].decode()
+    fileName = payload.decode()
+    print(f"FileName: {fileName}")
         
      # SPLIT FILE INTO CHUNCKS FOR PACKETS
     try:
         filePart = []
-        with open(fileName, "rb") as file:
+        # print(f"PATH: {os.system('ls -l')}")
+        with open(fileName, "r") as file:
+            # print(f"file: {file}")
             while True:
                 # read in chucks by length
-                chunk = file.read(length)
-                
+                chunk = file.read(length_chunk)
                 # End of file
                 if not chunk:
                     break
                 
                 filePart.append(chunk)
-                print(f"")
-        print(f"\nfilePart: {filePart}\n")
+
+                # print(f"")
+            print(f"\nfilePart: {filePart}\n")
+
 
     
     except FileNotFoundError:
@@ -212,15 +218,27 @@ def main():
     # SEND DATA AND END PACKETS TO REQUESTER
     
     # buffer each packet by window size
-    buffer = [[]]
+    # buffer = [[],[]]
+    # length of buffer is file size / length_chunk
+    buffer = [[] for i in range(math.ceil(len(filePart) / window))]
     cur_index = 0
     cur_num_in_window = 0
+    # print len buffer
+    # print filePart
     for part in range(len(filePart)):
+        # print(f"part: {part}")
         buffer[cur_index].append(filePart[part])
         cur_num_in_window += 1
         if cur_num_in_window == window:
             cur_index += 1
             cur_num_in_window = 0
+            
+
+        # print(f"cur_num_in_window: {cur_num_in_window}")
+        # print(f"cur_index: {cur_index}")
+        # print(f"buffer: {buffer}")
+        # print(f"window: {window}")
+
     
     sock.setblocking(False)
     

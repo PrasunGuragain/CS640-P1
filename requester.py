@@ -158,8 +158,8 @@ def main():
     sender_order = []
     
     # empty file
-    with open(file_option, 'w') as file:
-        pass
+    # with open(file_option, 'w') as file:
+    #     pass
     
     while True:
         # Get packet from sender

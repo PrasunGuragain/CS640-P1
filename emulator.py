@@ -23,10 +23,10 @@ def parse_packet(packet):
     packet_type = struct.unpack('c', packet[17:18])[0]
     sequence_number = struct.unpack('I', packet[18:22])[0]
     # TODO: it is not reading payload_length correctly
-    # in request packet, the window size
-    payload_length = struct.unpack('I', packet[22:26])
+    # in request packet, the window size is payload_length
+    payload_length = struct.unpack('!I', packet[22:26])[0]
     print(payload_length)
-    sys.exit(1)
+    # sys.exit(1)
     payload = packet[26:]
     payload_length = len(payload)
 
