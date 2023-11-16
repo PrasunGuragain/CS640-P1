@@ -25,7 +25,6 @@ def parse_packet(packet):
     # TODO: it is not reading payload_length correctly
     # in request packet, the window size is payload_length
     payload_length = struct.unpack('!I', packet[22:26])[0]
-    print(payload_length)
     # sys.exit(1)
     payload = packet[26:]
     payload_length = len(payload)
@@ -64,6 +63,8 @@ def send_helper():
                     #next_hop_key_int = (destination_address_str, destination_port)
                     
                     sock.sendto(current_packet, (destination_address, destination_port))   
+                    # print packet and destination
+                    print(f"Packet: {current_packet} is sent to {destination_address}:{destination_port}\n")
                     delayed_packets.remove(delayed)
                     
                     return

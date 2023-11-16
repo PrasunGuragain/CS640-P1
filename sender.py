@@ -17,9 +17,9 @@ def parse_packet(packet):
     packet_type = struct.unpack('c', packet[17:18])[0]
     sequence_number = struct.unpack('I', packet[18:22])[0]
     # TODO: it is not reading payload_length correctly
-    #payload_length = struct.unpack('I', packet[22:26])
+    payload_length = struct.unpack('!I', packet[22:26])[0]
     payload = packet[26:]
-    payload_length = len(payload)
+    # payload_length = len(payload)
 
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
 
@@ -142,7 +142,7 @@ def main():
     # timeout
     if '-t' in sys.argv:
         t = sys.argv.index('-t')
-        timeout = sys.argv[t + 1]
+        timeout = int(sys.argv[t + 1])
     else:
         print("timeout argument (-t) is missing.")
         sys.exit(1)
@@ -255,7 +255,10 @@ def main():
             packet_tuple = [packet, curTime, 1]
             list_of_packet_tuples.append(packet_tuple)
             sock.sendto(packet, (f_hostname, f_port))
-            print(f"\nf_hostname: {f_hostname}\nf_port: {f_port}\n")
+            # print detailed debugging statment
+            print(f"Packet: {packet} sent to {f_hostname}:{f_port}")
+
+
 
             
         num_of_ack = 0
@@ -285,22 +288,26 @@ def main():
                     continue
                 
                 # if we have not resent 5 times, then we check if we need to resend
+
+
                 if curTime + timeout > tuple[1]:
-                    ack_packet, addr = sock.recvfrom(5000)
-                    
-                    # after timeout amount, if we receive an ACK, then we remove it from the list
-                    if ack_packet is not None:
+                    try:
+                        ack_packet, addr = sock.recvfrom(5000)
                         
-                        # ACK received
-                        num_of_ack += 1
-                        
-                        ack_received[index] = True
-                        
-                        pass
-                    else: 
+                        # after timeout amount, if we receive an ACK, then we remove it from the list
+                        if ack_packet is not None:
+                            
+                            # ACK received
+                            num_of_ack += 1
+                            
+                            ack_received[index] = True
+                            
+                            pass
+                    except BlockingIOError as e: 
                         # ACK not received, resend packet
                         tuple[2] += 1
                         sock.sendto(packet, (f_hostname, f_port))
+                        print(f"Packet: {packet} RESENT to {f_hostname}:{f_port}")
     
     # STUFF BELOW IS OLD CODE, KEEPING FOR REFERENCE
     
@@ -340,7 +347,9 @@ def main():
     
         # Send the packets to requester
     sock.sendto(packet, (requestAddress[0], requesterPort))
-    
+    # print end packet and destination
+    print(f"END Packet: {packet} to {requestAddress[0]}:{requesterPort}")
+
     curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     
     # Print what was sent

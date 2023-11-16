@@ -8,7 +8,6 @@ import time
 def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType, packetLength):
     # socket.inet_aton(requester_ip)
     # msg = struct.pack('c l h l h I c I I')
-
     priority_type = struct.pack('B', priority)
     src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
     src_port = struct.pack('H', s_port)
@@ -27,17 +26,17 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     return packet
     
 def parse_packet(packet):
-    priority = struct.unpack('B', packet[:1])
-    src_ip_address = struct.unpack('4s', packet[1:5])
-    src_port = struct.unpack('H', packet[5:7])
-    dest_ip_address = struct.unpack('4s', packet[7:11])
-    dest_port = struct.unpack('H', packet[11:13])
-    length = struct.unpack('I', packet[13:17])
+    priority = struct.unpack('B', packet[:1])[0]
+    src_ip_address = struct.unpack('4s', packet[1:5])[0]
+    src_port = struct.unpack('H', packet[5:7])[0]
+    dest_ip_address = struct.unpack('4s', packet[7:11])[0]
+    dest_port = struct.unpack('H', packet[11:13])[0]
+    length = struct.unpack('I', packet[13:17])[0]
 
     # payload
-    packet_type = struct.unpack('c', packet[17:18])
-    sequence_number = struct.unpack('I', packet[18:22])
-    payload_length = struct.unpack('I', packet[22:26])
+    packet_type = struct.unpack('c', packet[17:18])[0]
+    sequence_number = struct.unpack('I', packet[18:22])[0]
+    payload_length = struct.unpack('I', packet[22:26])[0]
     payload = packet[26:26 + payload_length]
 
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
@@ -136,12 +135,11 @@ def main():
         sender_hostname = part_info["SenderHostname"]
         sender_port = part_info["SenderPort"]
         part_id = part_info["ID"]
-
-        print(window)
         request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0, 'R'.encode(), window)
         
         # Send the request packet to the sender
         sock.sendto(request_packet, (f_hostname, f_port))
+        print(f"Request packet sent to {sender_hostname}:{sender_port} for part {part_id} of {file_option}")
         
     
     # RECEIVE PACKETS FROM SERVER AND SEND ACKS
@@ -173,7 +171,11 @@ def main():
             pass # What to do here?
         
         # Send ack to sender
-        ack_packet = struct.pack('!cII', b'A', sequence_number, 0)
+        # ack_packet = struct.pack('!cII', b'A', sequence_number, 0)
+        # create ack packet
+        # def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType, packetLength):
+        ack_packet = create_packet(1,port,sender_hostname, sender_port, 0, "", sequence_number, 'A'.encode(), 0)
+
         sock.sendto(ack_packet, sender_address)
         
         # packet_type, sequence_number, payload_length = struct.unpack('!cII', data[:9])
