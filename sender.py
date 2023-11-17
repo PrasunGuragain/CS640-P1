@@ -152,21 +152,13 @@ def main():
     sock.bind(('0.0.0.0', port))
 
     
-    # GET REQUEST PACKET FROM REQUESTER
-    
-    # packet:
-        # packet type (8 bit) | sequence number (32 bit) | length (32 bit) | payload (variable length)
-    
+    # GET REQUEST PACKET FROM REQUESTER 
     requestPacket, requestAddress = sock.recvfrom(5000)
 
     priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(requestPacket)
-    
-    # print("requestPacket: ", requestPacket, " window: ", window, " requestPacketType:", packet_type, " requestSequenceNumber: ", sequence_number)
-    
-    fileName = payload.decode()
-    
-    # print(f"FileName: {fileName}")
         
+    fileName = payload.decode()
+            
      # SPLIT FILE INTO CHUNCKS FOR PACKETS
     try:
         filePart = []
@@ -179,8 +171,6 @@ def main():
                     break
                 
                 filePart.append(chunk)
-
-            # print(f"\nfilePart: {filePart}\n")
     except FileNotFoundError:
         print("File not found.")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -213,7 +203,7 @@ def main():
     # SEND DATA AND END PACKETS TO REQUESTER
     
     # buffer each packet by window size
-    # buffer = [[],[]]
+    # buffer = [[]]
     # length of buffer is file size / length_chunk
     buffer = [[] for i in range(math.ceil(len(filePart) / window))]
     cur_index = 0
@@ -236,23 +226,25 @@ def main():
         for packet_part in window_of_packets:
             outer_length = 9 + length
             packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo)
+            
             curTime = time.time()
             packet_tuple = [packet, curTime, 1]
             list_of_packet_tuples.append(packet_tuple)
-            sock.sendto(packet, (f_hostname, f_port))
             
-            # print detailed debugging statment
-            # print(f"Packet: {packet} sent to {f_hostname}:{f_port}")
+            print(f"Packet: {packet_tuple} SENT to {f_hostname}:{f_port}")
+            sock.sendto(packet, (f_hostname, f_port))
 
         num_of_ack = 0
         
-        # if we remove from list, it might effect the for loop, so we need this to keep track of which packets we received ACKs for
+        # if we remove from list, it might effect the for loop, 
+        # so we need this to keep track of which packets we received ACKs for
         ack_received = [False] * window
         
         # for each group of packets, wait for ACKs
         while num_of_ack < window:
             
             # once ack received for curr packet, then we remove it from window_of_packets
+            
             curTime = time.time()
             for index, tuple in enumerate(list_of_packet_tuples):
                 
@@ -287,13 +279,14 @@ def main():
                             pass
                     except BlockingIOError as e: 
                         # ACK not received, resend packet
+                        # print tuple
+                        print(f"Packet: {tuple} RESENT to {f_hostname}:{f_port}")
                         tuple[2] += 1
+                        print(f"AGAIN Packet: {tuple} RESENT to {f_hostname}:{f_port}")
                         sock.sendto(packet, (f_hostname, f_port))
-                        
-                        # print(f"Packet: {packet} RESENT to {f_hostname}:{f_port}")
-    
+                            
     # STUFF BELOW IS OLD CODE, KEEPING FOR REFERENCE
-    
+    '''
     for i in filePart:
         # Create a packet
         packetType = 'D'.encode()
@@ -345,5 +338,6 @@ def main():
         
     # Close the socket
     sock.close()
+    '''
         
 main()

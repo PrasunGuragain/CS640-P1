@@ -191,6 +191,10 @@ while True:
             # Parse the packet
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
             
+            print(f"Packet type: {packet_type.decode()}")
+            print(f"Packet: {payload} is received from {src_ip_address}:{src_port}\n")
+            # print packet type
+            
             # setting up priority queues, decide where it is to be forwarded
             routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
             

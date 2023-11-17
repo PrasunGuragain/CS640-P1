@@ -165,6 +165,10 @@ def main():
         data, sender_address = sock.recvfrom(1024) 
         priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(data)
         
+        print(f"Received packet [{payload}] from {sender_address[0]}:{sender_address[1]}")
+        #print packet type
+        print(f"Packet type: {packet_type.decode()}")
+        
         # TODO: sender might send the same packet multiple times, check if the packet is already received
         
         # Verify that the destination IP address in its received packet (data packets or end packets) is indeed its own IP address
