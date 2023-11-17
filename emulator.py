@@ -55,9 +55,6 @@ def send_helper():
                 if random.random() * 100 > loss_probability:
                     destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
                     
-                    # print sequence number
-                    print(f"Sequence number: {sequence_number}")
-                    print(f"Packet: {current_packet} is SENT to {destination_address}:{destination_port}\n")
                     sock.sendto(current_packet, (destination_address, destination_port))  
                     
                     delayed_packets.remove(delayed)
@@ -197,18 +194,6 @@ while True:
             # Have not received a packet, 2.3 Forwarding Summary step 4
             # Check if there are delayed packets
             send_helper()
-            
-            '''
-            if delayed_packets:
-                current_time = time.time()
-                
-                # Check if a packet 
-            next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-            delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
-            loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
-            
-            send(next_hop_key, delay, loss_probability, log, packet)
-            '''
             
     except KeyboardInterrupt:
             socket.close()

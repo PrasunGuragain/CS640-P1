@@ -17,7 +17,6 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     
     header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
     
-    #packetLength = len(packet_part)
     header2 = struct.pack('!cII', packetType, seqNo, packetLength)
     payload = header2 + packet_part.encode('utf-8')
     
@@ -138,10 +137,7 @@ def main():
         request_packet = create_packet(1,port,sender_hostname, sender_port, 0, file_option, 0, 'R'.encode(), window)
         
         # Send the request packet to the sender
-        sock.sendto(request_packet, (f_hostname, f_port))
-        
-        # print(f"Request packet sent to {sender_hostname}:{sender_port} for part {part_id} of {file_option}")
-        
+        sock.sendto(request_packet, (f_hostname, f_port))        
     
     # RECEIVE PACKETS FROM SERVER AND SEND ACKS
     
@@ -165,22 +161,11 @@ def main():
         data, sender_address = sock.recvfrom(1024) 
         priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(data)
         
-        # print sequence_number
-        print(f"Packet sequence number: {sequence_number}")
-        print(f"Packet type: {packet_type.decode()}")
-        print(f"Received packet [{payload}] from {sender_address[0]}:{sender_address[1]}\n")
-        #print packet type
-    
-        
         # TODO: sender might send the same packet multiple times, check if the packet is already received
         
-        # Verify that the destination IP address in its received packet (data packets or end packets) is indeed its own IP address
+        # TODO: Verify that the destination IP address in its received packet (data packets or end packets) is indeed its own IP address
         if dest_ip_address != socket.gethostbyname(socket.gethostname()):
             pass # What to do here?
-        
-        # Send ack to sender
-        # ack_packet = struct.pack('!cII', b'A', sequence_number, 0)
-        # create ack packet
         
         # def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType, packetLength):
         ack_packet = create_packet(1,port,sender_hostname, sender_port, 0, "", sequence_number, 'A'.encode(), 0)
@@ -226,16 +211,11 @@ def main():
             print(f"Average packets/second: {average}")
             print(f"Duration of the test: {duration} ms\n")
 
-
-            
             # save to split.txt
             sorted_packets = sorted(received_packets[sender_address[1]].items())
             
             reassembled_data = b''.join(packet_payload for _, packet_payload in sorted_packets)
-            
-           
-            
-            
+             
             # add each payload to file
             with open(file_option, "ab") as reassembled_file:
                 reassembled_file.write(reassembled_data)
@@ -243,7 +223,6 @@ def main():
             if num_of_ends == len(tracker_info[file_option]):
                 break
         else:
-            '''
             # Print data receipt information
             print("DATA Packet")
             print(f"recv time: {curTime}")
@@ -251,9 +230,9 @@ def main():
             print(f"sequence: {sequence_number}")
             print(f"length: {payload_length}")
             print(f"payload: {payload.decode()[:4]}\n")
-            '''
            
             received_packets[sender_address[1]][sequence_number] = payload
+            
             # update total data packets and bytes
             summary_info[sender_address[1]][0] += 1
             summary_info[sender_address[1]][1] += payload_length
