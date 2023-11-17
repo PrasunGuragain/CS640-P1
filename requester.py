@@ -35,8 +35,8 @@ def parse_packet(packet):
 
     # payload
     packet_type = struct.unpack('c', packet[17:18])[0]
-    sequence_number = struct.unpack('I', packet[18:22])[0]
-    payload_length = struct.unpack('I', packet[22:26])[0]
+    sequence_number = struct.unpack('!I', packet[18:22])[0]
+    payload_length = struct.unpack('!I', packet[22:26])[0]
     payload = packet[26:26 + payload_length]
 
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
@@ -165,9 +165,12 @@ def main():
         data, sender_address = sock.recvfrom(1024) 
         priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(data)
         
-        print(f"Received packet [{payload}] from {sender_address[0]}:{sender_address[1]}")
-        #print packet type
+        # print sequence_number
+        print(f"Packet sequence number: {sequence_number}")
         print(f"Packet type: {packet_type.decode()}")
+        print(f"Received packet [{payload}] from {sender_address[0]}:{sender_address[1]}\n")
+        #print packet type
+    
         
         # TODO: sender might send the same packet multiple times, check if the packet is already received
         

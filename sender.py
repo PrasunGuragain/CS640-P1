@@ -15,7 +15,7 @@ def parse_packet(packet):
 
     # payload
     packet_type = struct.unpack('c', packet[17:18])[0]
-    sequence_number = struct.unpack('I', packet[18:22])[0]
+    sequence_number = struct.unpack('!I', packet[18:22])[0]
     # TODO: it is not reading payload_length correctly
     payload_length = struct.unpack('!I', packet[22:26])[0]
     payload = packet[26:]
@@ -223,39 +223,148 @@ def main():
         # we said tuples, but changed to lists, so its list of packet lists
         list_of_packet_tuples = []
         
+        match_by_seq = {}
+        
+        received_ack_packets_for_seq = []
+        
         for packet_part in window_of_packets:
             outer_length = 9 + length
             packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo)
             
             curTime = time.time()
-            packet_tuple = [packet, curTime, 1]
+            packet_tuple = [packet, curTime, 1, seqNo, False]
+            match_by_seq[seqNo] = packet_tuple
             list_of_packet_tuples.append(packet_tuple)
             
             print(f"Packet: {packet_tuple} SENT to {f_hostname}:{f_port}")
             sock.sendto(packet, (f_hostname, f_port))
+            
+            seqNo += 1
 
-        num_of_ack = 0
         
         # if we remove from list, it might effect the for loop, 
         # so we need this to keep track of which packets we received ACKs for
-        ack_received = [False] * window
+        #ack_received = [False] * window
         
+        # match_by_seq = [packet, curTime, counter, seqNo, ack_received]
+        
+        '''
+        while not all_packets_sent:
+        send_window()
+        
+        for packet in window:
+            start_timeout()
+            
+            while not ack_received(packet):
+                if timeout_expired(packet):
+                    if packet.retransmission_count < MAX_RETRANSMISSIONS:
+                        retransmit_packet(packet)
+                        increment_retransmission_count(packet)
+                    else:
+                        print(f"Giving up on packet {packet.sequence_number}")
+                        break
+        '''
+            
+        '''
+        # once ack received for curr packet, then we remove it from window_of_packets
+        
+        while True:
+            ack_packet, addr = sock.recvfrom(5000)
+            for key, value in match_by_seq.items():
+                if num_of_ack ==window:
+                    break
+                curTime = time.time()
+                if curTime + timeout > value[1]:
+        '''
+            
+            # match_by_seq = [packet, curTime, counter, seqNo, ack_received]
+            # key seqNo, value: [packet, curTime, counter, seqNo, ack_received]
+            
+        num_of_ack = 0
         # for each group of packets, wait for ACKs
         while num_of_ack < window:
             
-            # once ack received for curr packet, then we remove it from window_of_packets
+            # for each packet, listen for ack until timeout expires
+            for key, value in match_by_seq.items():
+                # if the fifth time we resend
+                if value[2] == 5 or value[4]:
+                    continue
+                
+                # if current packet is already acked, move on 
+                
+                # while current packet is not acked, and timeout not expired, listen for ack packet
+                print(time.time(), timeout, value[1])
+                # send = 80
+                # time = 50
+                # stop ack, resent = 80 + 50 = 130
+                # cur = 100
+                while time.time() < value[1] + timeout:
+                    print(f"Packet: {value} LISTENING for ACK from {f_hostname}:{f_port}")
+                    try:
+                        ack_packet, addr = sock.recvfrom(5000)
+                        priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(ack_packet)
+                        
+                        # print everythin
+                        print(f"seqNo: {sequence_number}")
+                        # print match_by_seq[sequence_number]
+                        print(f"match_by_seq: {match_by_seq[sequence_number]}")
+                        print(f"Packet: {ack_packet} ACKED from {addr}\n")
+                        match_by_seq[sequence_number][4] = True
+                        num_of_ack += 1
+                        if sequence_number == value[3]:
+                            break
+                    except BlockingIOError:
+                        pass
+                
+                # if timeout expires and no ack packet, then retransmit, update tuple
+                value[2] += 1
+                print(f"Packet: {value} RESENT to {f_hostname}:{f_port}\n")
+                sock.sendto(value[0], (f_hostname, f_port))
+                
+                
+            # 10 packets
+            # we know when the time that each packet will expire ie. thats when we should retransmit 
+            # we listen for ack packets for as long as the latest packet expires (the last packet sent)
+            # all the packets will be expired, and we'll know which ones need to be retransmitted 
+
             
+
+            # attempt 2
+            # iterate through window of packets (10 packets)
+            # for each packet, listen until that packet has expired, or wait util time out is expired, then recieve ack packet
+            # if ack packet, then update tuple
+            # else, retransmit, update tuple 
+            
+            # attempt 3
+            # for each packet, listen for ack until timeout expires
+            # if not receive ack packet and time out not expired, then listen for ack packet ie. listen for ack pac                        
+            #   # update whichever packet was acked in match_by_seq 
+                # continue to receive for ack packets until current packet is expired or acked
+            # if timeout expires and no ack packet, then retransmit, update tuple
+                    
+            '''
+            real attempt 3
+            for each packet, check if packet is acked,
+            if not receive ack packet and time out not expired, then listen for ack packet
+            if ack packet recieved update whichever packet was acked in match_by_seq
+            continue to receive for ack packets until current packet is expired or acked
+            if timeout expires and no ack packet, then retransmit, update tuple
+            if timeout not expired but current packet is acked, move on to next packet. check if that packet is already acked
+            '''
+                
+            '''
+            for key, value in ma
             curTime = time.time()
             for index, tuple in enumerate(list_of_packet_tuples):
                 
                 # either we have already received an ACK for this packet, or we have resent 5 times
-                if ack_received[index]:
-                    continue
+                #if ack_received[index]:
+                    #continue
                 
                 # if we already resent 5 times, then we remove it from the list
                 if tuple[2] == 5:
                     # list_of_packet_tuples.remove(tuple)
-                    ack_received[index] = True
+                    #ack_received[index] = True
                     
                     # even though we didn't receive an ACK, we need this for the while loop to end
                     num_of_ack += 1
@@ -268,13 +377,16 @@ def main():
                     try:
                         ack_packet, addr = sock.recvfrom(5000)
                         
+                        priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(requestPacket)
+                        
+                        
                         # after timeout amount, if we receive an ACK, then we remove it from the list
                         if ack_packet is not None:
                             
                             # ACK received
                             num_of_ack += 1
                             
-                            ack_received[index] = True
+                            #ack_received[index] = True
                             
                             pass
                     except BlockingIOError as e: 
@@ -284,6 +396,7 @@ def main():
                         tuple[2] += 1
                         print(f"AGAIN Packet: {tuple} RESENT to {f_hostname}:{f_port}")
                         sock.sendto(packet, (f_hostname, f_port))
+            '''
                             
     # STUFF BELOW IS OLD CODE, KEEPING FOR REFERENCE
     '''

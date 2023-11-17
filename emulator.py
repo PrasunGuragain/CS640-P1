@@ -21,9 +21,7 @@ def parse_packet(packet):
 
     # payload
     packet_type = struct.unpack('c', packet[17:18])[0]
-    sequence_number = struct.unpack('I', packet[18:22])[0]
-    # TODO: it is not reading payload_length correctly
-    # in request packet, the window size is payload_length
+    sequence_number = struct.unpack('!I', packet[18:22])[0]
     payload_length = struct.unpack('!I', packet[22:26])[0]
     # sys.exit(1)
     payload = packet[26:]
@@ -57,10 +55,10 @@ def send_helper():
                 if random.random() * 100 > loss_probability:
                     destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
                     
+                    # print sequence number
+                    print(f"Sequence number: {sequence_number}")
+                    print(f"Packet: {current_packet} is SENT to {destination_address}:{destination_port}\n")
                     sock.sendto(current_packet, (destination_address, destination_port))  
-                     
-                    # print packet and destination
-                    # print(f"Packet: {current_packet} is sent to {destination_address}:{destination_port}\n")
                     
                     delayed_packets.remove(delayed)
                     
@@ -191,27 +189,10 @@ while True:
             # Parse the packet
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
             
-            print(f"Packet type: {packet_type.decode()}")
-            print(f"Packet: {payload} is received from {src_ip_address}:{src_port}\n")
-            # print packet type
-            
             # setting up priority queues, decide where it is to be forwarded
             routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
             
             send_helper()
-            
-            '''
-            for key, value in forwarding_table.items():
-                destination, d_port = key
-                next_hop, next_port = value[0]
-                delay = value[1]
-                loss_probability = value[2]
-            
-            # get all the values from the forwarding table
-            next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-            delay = forwarding_table[(dest_ip_address, str(dest_port))][1]
-            loss_probability = forwarding_table[(dest_ip_address, str(dest_port))][2]
-            '''
         except BlockingIOError:
             # Have not received a packet, 2.3 Forwarding Summary step 4
             # Check if there are delayed packets
