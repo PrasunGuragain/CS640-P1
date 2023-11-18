@@ -22,7 +22,7 @@ def parse_packet(packet):
     return priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload
 
 # TODO: Check create_packet function
-def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo):
+def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType):
     priority_type = struct.pack('B', priority)
     src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
     src_port = struct.pack('H', s_port)
@@ -32,16 +32,15 @@ def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_pa
     
     header1 = priority_type + src_ip_address + src_port + dest_ip_address + dest_port + length1
     
-    packetType = 'D'.encode()
+    encodedPacketType = packetType.encode()
     packetLength = len(packet_part)
-    header2 = struct.pack('!cII', packetType, seqNo, packetLength)
+    header2 = struct.pack('!cII', encodedPacketType, seqNo, packetLength)
     
     payload = header2 + packet_part.encode('utf-8')
     
     packet = header1 + payload
     
     return packet
-    
 
 def main():
     # data packet
@@ -67,6 +66,8 @@ def main():
     Length: 
     Payload: ''
     '''
+    
+    total_transmission, total_retransmission = 0, 0
     
     # PARSE COMMAND LINE ARGUMENTS
     
@@ -132,7 +133,7 @@ def main():
     # priority
     if '-i' in sys.argv:
         i = sys.argv.index('-i')
-        priority = sys.argv[i + 1]
+        givenPriority = int(sys.argv[i + 1])
     else:
         print("priority argument (-i) is missing.")
         sys.exit(1)
@@ -183,6 +184,7 @@ def main():
         end_packet = header + payload
         
         # Send the END packet to the requester
+        total_transmission += 1
         sock.sendto(end_packet, (requestAddress, requesterPort))
         
         # Print information about the END packet
@@ -227,7 +229,7 @@ def main():
         
         for packet_part in window_of_packets:
             outer_length = 9 + length
-            packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo)
+            packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo, 'D')
             
             curTime = time.time()
             packet_tuple = [packet, curTime, 1, seqNo, False]
@@ -235,7 +237,20 @@ def main():
             list_of_packet_tuples.append(packet_tuple)
             
             print(f"Packet: {packet_tuple} SENT to {f_hostname}:{f_port}")
+            total_transmission += 1
             sock.sendto(packet, (f_hostname, f_port))
+            
+            curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+            
+            '''
+            # Print what was sent
+            print(f"DATA Packet")
+            print(f"send time: {curTime}")
+            print(f"requester addr: {requestAddress[0]}:{requesterPort}")
+            print(f"Sequence num: {seqNo}")
+            print(f"length: {packetLength}")
+            print(f"payload: {packet_part}\n")
+            '''
             
             seqNo += 1
             
@@ -247,15 +262,17 @@ def main():
             # for each packet, listen for ack until timeout expires
             for key, value in match_by_seq.items():
                 # if the fifth time we resend
-                if value[2] == 5 or value[4]:
+                if value[2] == 5:
+                    print(f"Failed to receive ACK after 5 retransmits - Giving up on packet with sequence number: {value[3]}")
                     continue
-                
+                if  value[4]:
+                    continue
                 # if current packet is already acked, move on 
                 
                 # while current packet is not acked, and timeout not expired, listen for ack packet
                 # send = 80, time = 50, stop ack/resent = 80 + 50 = 130, cur = 100
                 while time.time() < value[1] + timeout:
-                    print(f"Packet: {value} LISTENING for ACK from {f_hostname}:{f_port}")
+                    #print(f"Packet: {value} LISTENING for ACK from {f_hostname}:{f_port}")
                     try:
                         ack_packet, addr = sock.recvfrom(5000)
                         priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(ack_packet)
@@ -269,64 +286,20 @@ def main():
                 
                 # if timeout expires and no ack packet, then retransmit, update tuple
                 value[2] += 1
+                total_retransmission += 1
+                total_transmission += 1
                 sock.sendto(value[0], (f_hostname, f_port))
-                            
+    
+    # def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType):
     # TODO: Send End packet
+    outer_length = 0 
+    packet_part = ""
+    endPacket = create_packet(givenPriority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo, 'E')
+    total_transmission += 1
+    sock.sendto(endPacket, (f_hostname, f_port))
     
-    
-    # STUFF BELOW IS OLD CODE, KEEPING FOR REFERENCE
-    '''
-    for i in filePart:
-        # Create a packet
-        packetType = 'D'.encode()
-        #if b'\n' in i:
-	        #packetLength = len(i) + 1
-        #else:
-        packetLength = len(i)
-        #packetLength = len(i)
-        header = struct.pack('!cII', packetType, seqNo, packetLength)
-        packet = header + i
-        
-         # Send the packets to requester
-        sock.sendto(packet, (requestAddress[0], requesterPort))
-        
-        curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        
-        # Print what was sent
-        print(f"DATA Packet")
-        print(f"send time: {curTime}")
-        print(f"requester addr: {socket.gethostname()}:{requesterPort}")
-        print(f"Sequence num: {seqNo}")
-        print(f"length: {packetLength}")
-        print(f"payload: {i.decode('utf-8')[:4]}\n")
-        
-        seqNo += packetLength
-    
-    # Send End packet
-    packetType = 'E'.encode()
-    packetLength = 0
-    header = struct.pack('!cII', packetType, seqNo, packetLength)
-    payload = b''
-    
-    packet = header + payload
-    
-        # Send the packets to requester
-    sock.sendto(packet, (requestAddress[0], requesterPort))
-    # print end packet and destination
-    print(f"END Packet: {packet} to {requestAddress[0]}:{requesterPort}")
 
-    curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    
-    # Print what was sent
-    print(f"END Packet")
-    print(f"send time: {curTime}")
-    print(f"requester addr: {socket.gethostname()}:{requesterPort}")
-    print(f"Sequence num: {seqNo}")
-    print(f"length: {0}")
-    print(f"payload: ""\n")
-        
-    # Close the socket
-    sock.close()
-    '''
+    # print loss rate
+    print(f"LOSS RATE: {(total_retransmission/total_transmission) * 100}%")
         
 main()

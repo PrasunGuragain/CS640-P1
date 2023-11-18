@@ -153,8 +153,8 @@ def main():
     sender_order = []
     
     # empty file
-    # with open(file_option, 'w') as file:
-    #     pass
+    with open("output.txt", 'w') as file:
+        pass
     
     while True:
         # Get packet from sender
@@ -162,6 +162,8 @@ def main():
         priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(data)
         
         # TODO: sender might send the same packet multiple times, check if the packet is already received
+        
+        #print(f"Received packet {data} from {sender_address[0]}:{sender_address[1]}")
         
         # TODO: Verify that the destination IP address in its received packet (data packets or end packets) is indeed its own IP address
         if dest_ip_address != socket.gethostbyname(socket.gethostname()):
@@ -173,14 +175,17 @@ def main():
         sock.sendto(ack_packet, sender_address)
         
         # packet_type, sequence_number, payload_length = struct.unpack('!cII', data[:9])
-        payload = payload[9:9 + payload_length]  # extract payload
+        # payload = payload[9:9 + payload_length]  # extract payload
         
+         # received_packets[address] = {sequence number: payload}
+        #print(f"Received packet from {sender_address[0]}:{sender_address[1]}")
         if sender_address[1] not in received_packets:
             received_packets[sender_address[1]] = {}
             
         curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
         # Initialize summaryInfo for each sender
+        # summaryInfo[address] = [Total Data packets, Total Data bytes]
         if sender_address[1] not in summary_info:
             summary_info[sender_address[1]] = [0, 0]
             num_of_senders += 1
@@ -192,6 +197,7 @@ def main():
             num_of_ends += 1
             end_time = time.time()
             
+            '''
             # Print end receipt information
             print("End Packet")
             print(f"recv time: {curTime}")
@@ -199,9 +205,12 @@ def main():
             print(f"sequence: {sequence_number}")
             print(f"length: {0}")
             print(f"payload: {0}\n")
+            '''
             
             duration = int(((end_time) - (start_time)) * 1000)
             average = math.ceil((summary_info[sender_address[1]][0]) / (duration))
+            
+            print(f"Summary_info: {summary_info}")
             
             # summary
             print("Summary")
@@ -217,12 +226,14 @@ def main():
             reassembled_data = b''.join(packet_payload for _, packet_payload in sorted_packets)
              
             # add each payload to file
-            with open(file_option, "ab") as reassembled_file:
+            with open("output.txt", "ab") as reassembled_file:
                 reassembled_file.write(reassembled_data)
 
             if num_of_ends == len(tracker_info[file_option]):
                 break
         else:
+            #print("In data packet else statement!")
+            '''
             # Print data receipt information
             print("DATA Packet")
             print(f"recv time: {curTime}")
@@ -230,6 +241,7 @@ def main():
             print(f"sequence: {sequence_number}")
             print(f"length: {payload_length}")
             print(f"payload: {payload.decode()[:4]}\n")
+            '''
            
             received_packets[sender_address[1]][sequence_number] = payload
             

@@ -182,12 +182,20 @@ while True:
         # Receive packet from network in a non-blocking way. This means that you should not wait/get blocked in the recvfrom function until you get a packet. Check if you have received a packet; If not jump to 4,
         try:
             packet, addr = sock.recvfrom(5000)
+            
+            #print("packet: " {packet})
 
             # Parse the packet
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
-            
-            # setting up priority queues, decide where it is to be forwarded
-            routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
+
+            if packet_type == 'E':
+                next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
+                destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
+                sock.sendto(packet, (destination_address, destination_port))  
+                    
+            else:
+                # setting up priority queues, decide where it is to be forwarded
+                routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
             
             send_helper()
         except BlockingIOError:
