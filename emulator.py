@@ -52,7 +52,11 @@ def send_helper():
                 # send packet to next hop, drop if loss
                 
                 # 7. Otherwise, send the packet to the proper next hop.
-                if random.random() * 100 > loss_probability:
+                endPacket = False
+                if packet_type == 'E':
+                    endPacket = True
+                    
+                if endPacket or random.random() * 100 > loss_probability:
                     destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
                     
                     sock.sendto(current_packet, (destination_address, destination_port))  
@@ -148,7 +152,6 @@ if '-l' in sys.argv:
 else:
     print("Log argument (-l) is missing.")
     sys.exit(1)
-
             
 # Create a socket for the requester
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -188,15 +191,14 @@ while True:
             # Parse the packet
             priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
 
-            if packet_type == 'E':
-                next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-                destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
-                sock.sendto(packet, (destination_address, destination_port))  
-                    
-            else:
-                # setting up priority queues, decide where it is to be forwarded
-                routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
-            
+            #if packet_type == 'E':
+            #next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
+            #destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
+            #sock.sendto(packet, (destination_address, destination_port))  
+                  
+            #else:
+            # setting up priority queues, decide where it is to be forwarded
+            routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, log, filename,packet)
             send_helper()
         except BlockingIOError:
             # Have not received a packet, 2.3 Forwarding Summary step 4

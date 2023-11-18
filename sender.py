@@ -232,11 +232,11 @@ def main():
             packet = create_packet(priority, port, requestAddress[0], requesterPort, outer_length, packet_part, seqNo, 'D')
             
             curTime = time.time()
-            packet_tuple = [packet, curTime, 1, seqNo, False]
+            packet_tuple = [packet, curTime, 1, seqNo, False] # [packet, curTime, counter, seqNo, acked/5 retransmits]
             match_by_seq[seqNo] = packet_tuple
             list_of_packet_tuples.append(packet_tuple)
             
-            print(f"Packet: {packet_tuple} SENT to {f_hostname}:{f_port}")
+            #print(f"Packet: {packet_tuple} SENT to {f_hostname}:{f_port}")
             total_transmission += 1
             sock.sendto(packet, (f_hostname, f_port))
             
@@ -263,20 +263,26 @@ def main():
             for key, value in match_by_seq.items():
                 # if the fifth time we resend
                 if value[2] == 5:
-                    print(f"Failed to receive ACK after 5 retransmits - Giving up on packet with sequence number: {value[3]}")
+                    #print(f"Failed to receive ACK after 5 retransmits - Giving up on packet with sequence number: {value[3]}")
+                    num_of_ack += 1
                     continue
                 if  value[4]:
+                    num_of_ack += 1
                     continue
                 # if current packet is already acked, move on 
                 
                 # while current packet is not acked, and timeout not expired, listen for ack packet
                 # send = 80, time = 50, stop ack/resent = 80 + 50 = 130, cur = 100
+                #while time.time() < value[1] + timeout:
                 while time.time() < value[1] + timeout:
                     #print(f"Packet: {value} LISTENING for ACK from {f_hostname}:{f_port}")
                     try:
                         ack_packet, addr = sock.recvfrom(5000)
                         priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(ack_packet)
-                        
+                        #print(f"sequence_number: {sequence_number}")
+                        #print(f"match_by_seq: {match_by_seq}")
+                        if sequence_number not in match_by_seq:
+                            continue
                         match_by_seq[sequence_number][4] = True
                         num_of_ack += 1
                         if sequence_number == value[3]:
@@ -285,10 +291,12 @@ def main():
                         pass
                 
                 # if timeout expires and no ack packet, then retransmit, update tuple
-                value[2] += 1
-                total_retransmission += 1
-                total_transmission += 1
-                sock.sendto(value[0], (f_hostname, f_port))
+                if not value[4]:
+                    value[2] += 1
+                    total_retransmission += 1
+                    total_transmission += 1
+                    #print(f"Packet: {value} RETRANSMITTED to {f_hostname}:{f_port}")
+                    sock.sendto(value[0], (f_hostname, f_port))
     
     # def create_packet(priority, s_port, d_address, d_port, packet1_length, packet_part, seqNo, packetType):
     # TODO: Send End packet
