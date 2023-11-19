@@ -210,7 +210,7 @@ def main():
             duration = int(((end_time) - (start_time)) * 1000)
             average = math.ceil((summary_info[sender_address[1]][0]) / (duration))
             
-            print(f"Summary_info: {summary_info}")
+            # print(f"Summary_info: {summary_info}")
             
             # summary
             print("Summary")

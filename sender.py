@@ -219,7 +219,7 @@ def main():
     
     # Send Data packets by window size
     for window_of_packets in buffer:
-        print(f"\n\n~~~~~~~~~~~Window of packets: {window_of_packets}~~~~~~~~~~\n\n")
+        # print(f"\n\n~~~~~~~~~~~Window of packets: {window_of_packets}~~~~~~~~~~\n\n")
         
         # we said tuples, but changed to lists, so its list of packet lists
         list_of_packet_tuples = []
@@ -258,7 +258,7 @@ def main():
         num_of_ack = 0
         
         # for each group of packets, wait for ACKs
-        print(f"num_of_ack: {num_of_ack} < window: {window}")
+        # print(f"num_of_ack: {num_of_ack} < window: {window}")
         while num_of_ack < window:
             
             # for each packet, listen for ack until timeout expires
@@ -288,7 +288,7 @@ def main():
                         if sequence_number not in match_by_seq:
                             continue
                         match_by_seq[sequence_number][4] = True
-                        print(f"Packet: {value} GOT ACK from {f_hostname}:{f_port}\n")
+                        # print(f"Packet: {value} GOT ACK from {f_hostname}:{f_port}\n")
 
                         num_of_ack += 1
                         if sequence_number == value[3]:
