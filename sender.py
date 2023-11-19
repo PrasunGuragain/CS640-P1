@@ -219,6 +219,7 @@ def main():
     
     # Send Data packets by window size
     for window_of_packets in buffer:
+        print(f"\n\n~~~~~~~~~~~Window of packets: {window_of_packets}~~~~~~~~~~\n\n")
         
         # we said tuples, but changed to lists, so its list of packet lists
         list_of_packet_tuples = []
@@ -257,13 +258,14 @@ def main():
         num_of_ack = 0
         
         # for each group of packets, wait for ACKs
+        print(f"num_of_ack: {num_of_ack} < window: {window}")
         while num_of_ack < window:
             
             # for each packet, listen for ack until timeout expires
             for key, value in match_by_seq.items():
                 # if the fifth time we resend
                 if value[2] == 5:
-                    #print(f"Failed to receive ACK after 5 retransmits - Giving up on packet with sequence number: {value[3]}")
+                    print(f"Failed to receive ACK after 5 retransmits - Giving up on packet with sequence number: {value[3]}")
                     num_of_ack += 1
                     continue
                 if  value[4]:
@@ -274,16 +276,20 @@ def main():
                 # while current packet is not acked, and timeout not expired, listen for ack packet
                 # send = 80, time = 50, stop ack/resent = 80 + 50 = 130, cur = 100
                 #while time.time() < value[1] + timeout:
-                while time.time() < value[1] + timeout:
-                    #print(f"Packet: {value} LISTENING for ACK from {f_hostname}:{f_port}")
+                while time.time() < value[1] + timeout/1000:
+                    # print(f"Packet: {value} LISTENING for ACK from {f_hostname}:{f_port}")
                     try:
                         ack_packet, addr = sock.recvfrom(5000)
-                        priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, window, payload = parse_packet(ack_packet)
+                        # PRINT GOT ACK
+
+                        priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, windowACK, payload = parse_packet(ack_packet)
                         #print(f"sequence_number: {sequence_number}")
                         #print(f"match_by_seq: {match_by_seq}")
                         if sequence_number not in match_by_seq:
                             continue
                         match_by_seq[sequence_number][4] = True
+                        print(f"Packet: {value} GOT ACK from {f_hostname}:{f_port}\n")
+
                         num_of_ack += 1
                         if sequence_number == value[3]:
                             break

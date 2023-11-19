@@ -55,10 +55,10 @@ def send_helper():
                 endPacket = False
                 if packet_type == 'E':
                     endPacket = True
-                    
+                
                 if endPacket or random.random() * 100 > loss_probability:
                     destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
-                    
+
                     sock.sendto(current_packet, (destination_address, destination_port))  
                     
                     delayed_packets.remove(delayed)
