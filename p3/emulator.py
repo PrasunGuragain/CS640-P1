@@ -6,7 +6,20 @@ import time
 from queue import Queue
 
 # global variables
+
+'''
+topology = {
+    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
+    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
+    ...
+}
+'''
 topology = {}
+
+'''
+all the emulators in the topology
+ipPortPairInTopology = [(ip, port), (ip, port), ...]
+'''
 ipPortPairInTopology = []
 
 def readTopology(filename):
@@ -20,7 +33,7 @@ def readTopology(filename):
             ipPortPair = line.split(" ")
             
             firstIp, firstPort = ipPortPair[0].split(",")
-            firstPair = (firstIp, firstPort)
+            firstPair = ((firstIp, firstPort), True, 0)
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
@@ -43,7 +56,33 @@ def createRoutes():
     Handle HelloMessages and LinkStateMessages for topology updates.
     Detect and react to node state changes.
     '''
+    
+    # get ip and port of this emulator
+    ip = socket.gethostbyname(socket.gethostname())
+    currentIpPortPair = (ip, port)
+    currentNeighbors = topology[currentIpPortPair]
+    
     while True:
+        # send HelloMessage to immediate neighbors
+        sendHelloMessages()
+        
+        # check for incoming packets
+        try:
+            packet, address = sock.recvfrom(5000)
+            packetType, timeStamp = parsePacket(packet)
+            
+            if packetType == 'H':
+                handleHelloMessage(timeStamp, address, currentIpPortPair)
+                pass
+            elif packetType == 'L':
+                handleLinkStateMessage()
+                pass
+        except BlockingIOError:
+            pass
+        
+        checkNeighborTimeout(currentNeighbors)
+        
+        '''
         # send HelloMessages to all neighbors every second
         for ipPortPair in ipPortPairInTopology:
             for neighbors in topology[ipPortPair]:
@@ -59,7 +98,7 @@ def createRoutes():
                 neighborsIp, neighborsPort = neighbors
                 packet = createPacket("LinkStateMessage")
                 sock.sendto(packet, (neighborsIp, neighborsPort))
-            
+        
         # receive HelloMessage
         try:
             packet, address = sock.recvfrom(5000)
@@ -70,39 +109,118 @@ def createRoutes():
         for ipPortPair in ipPortPairInTopology:
             for neighbors in topology[ipPortPair]:
                 pass
-                
+        ''' 
+
+def checkNeighborTimeout(currentNeighbors):
+    '''
+    Check if any of the neighbors have timed out.
+    If a neighbor has timed out, update the route topology and forwarding table.
+    Send LinkStateMessage to all neighbors.
+    '''
+    for neighbor in currentNeighbors:
+        ip = neighbor[0][0]
+        port = neighbor[0][1]
+        timeStamp = neighbor[2]
+        threshold = 1 # change to something else later
         
+        if time.time() - timeStamp > threshold:
+            # update route topology and forwarding table
+            
+            # TODO: next, change updateRouteTopology and write updateForwardingTable and buildForwardTable
+            # pass in false here because the neighbor is no longer connected
+            updateRouteTopology((ip, port), currentNeighbors)
+            
+            # this is where we proabbly call buildForwardTable
+            updateForwardingTable()
+            
+            # send LinkStateMessage
+            sendLinkStateMessage()
+    pass
 
-def createPacket(messageType):
-    if messageType == "HelloMessage":
-        timeStamp = time.time()
-    elif messageType == "LinkStateMessage":
-        pass
-    elif messageType == "RequestPacket":
-        pass
-    elif messageType == "DatePacket":
-        pass
-    elif messageType == "EndPacket":
-        pass
-
-    sendingTimeStamp = struct.pack('!d', timeStamp)
-    packetType = struct.pack('c', 'M'.encode('utf-8'))
+def createHelloPacket(messageType):
+    timeStamp = time.time()
+    packetType = 'H' # HelloMessage
     
-    packet = sendingTimeStamp + packetType
+    sendingPacketType = struct.pack('c', packetType.encode('utf-8'))
+    sendingTimeStamp = struct.pack('!d', timeStamp)
+    
+    packet = sendingPacketType + sendingTimeStamp
     
     return packet
 
 def parsePacket(packet):
-    timeStamp = struct.unpack('!d', packet[:8])[0]
-    # packetType = struct.unpack('c', packet[8:9])[0]
+    packetType = struct.unpack('c', packet[:8])[0]
     
-    return timeStamp # , packetType
+    if packetType == 'H':
+        return parseHelloPacket(packet)
+
+def parseHelloPacket(packet):
+    timeStamp = struct.unpack('!d', packet[8:9])[0]
+    
+    return 'H', timeStamp
+
+def sendHelloMessages():
+    '''
+    Send HelloMessages to all neighbors every second
+    '''
+    for ipPortPair in ipPortPairInTopology:
+        for neighbors in topology[ipPortPair]:
+            # send HelloMessage
+            neighborsIp, neighborsPort = neighbors
+            packet = createHelloPacket(neighborsIp, neighborsPort, "HelloMessage")
+            sock.sendto(packet, (neighborsIp, neighborsPort))
+            
+def handleHelloMessage(timestamp, address, currentIpPortPair):
+    currentNeighbors = topology[currentIpPortPair]
+    
+    # update the latest timestamp for the specific neighbor
+    updateTimeStamp(timestamp, address, currentNeighbors)
+    
+    # check if the sender was previously unavilable
+    for neighbor in currentNeighbors:
+        ip = neighbor[0][0]
+        port = neighbor[0][1]
+        if ip == address[0] and port == address[1]:
+            if neighbor[1] == False:
+                # update route topology and forwarding table
+                updateRouteTopology(address, currentNeighbors)
+                updateForwardingTable()
+                
+                # send LinkStateMessage
+                sendLinkStateMessage()
+
+def handleLinkStateMessage():
+    # update topology
+    pass
+
+def updateTimeStamp(timestamp, address, currentNeighbors):
+    for neighbor in currentNeighbors:
+        ip = neighbor[0][0]
+        port = neighbor[0][1]
+        if ip == address[0] and port == address[1]:
+            neighbor[2] = timestamp
+
+def updateRouteTopology(address, currentNeighbors):
+    print("update route topology")
+    for neighbors in currentNeighbors:
+        ip = neighbors[0][0]
+        port = neighbors[0][1]
+        if ip == address[0] and port == address[1]:
+            neighbors[1] = True
+
+def updateForwardingTable():
+    pass
+
+def sendLinkStateMessage():
+    print("send link state message")
+    #packet = createPacket("LinkStateMessage")
+    #sock.sendto(packet, (address[0], address[1]))
+    pass
+
+# PROJECT 2 BELOW
     
 # this list will have a list that contains [packet, delay_time_started]
 delayed_packets = []
-
-def parse_request_packet():
-    pass
 
 def parse_packet(packet):
     priority = struct.unpack('B', packet[:1])[0]
@@ -208,10 +326,7 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
         message = "no forwarding entry found"
         #log_event(log, message)
 
-readTopology("topology.txt")
-for key, value in topology.items():
-    print(f"{key} -> {value}")
-sys.exit(1)
+# MAIN FUNCTION STARTS HERE
       
 # PARSE COMMAND LINE ARGUMENTS
     
