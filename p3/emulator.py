@@ -4,6 +4,7 @@ import struct
 import random
 import time
 from queue import Queue
+import heapq
 
 # global variables
 
@@ -22,6 +23,7 @@ ipPortPairInTopology = [(ip, port), (ip, port), ...]
 '''
 ipPortPairInTopology = []
 
+# Completed
 def readTopology(filename):
     '''
     Write a function to read the topology file and initialize the emulator with the network structure.
@@ -49,6 +51,7 @@ def readTopology(filename):
                 topology[firstPair].append(pair)
     pass
 
+# TODO: Not completed
 def createRoutes():
     '''
     Refer to the course textbook pages 252-258 for details on the link-state protocol.
@@ -111,6 +114,58 @@ def createRoutes():
                 pass
         ''' 
 
+# TODO: Not completed
+def buildForwardTable():
+    '''
+    Build the forwarding table based on the current topology.
+    '''
+    currentEmulatorIpPortPair = (emulator_hostname, port)
+    
+    # Dijkstra's algorithm
+    
+    # initialize the confirmed set with the current emulator
+    confirmed = {currentEmulatorIpPortPair: (0, None)}
+    
+    # prirority queue to store nodes with their assiciated cost
+    tentative = [(0, currentEmulatorIpPortPair)]
+    
+    while tentative:
+        # pick the entry with the lowest cost
+        cost, current = heapq.heappop(tentative)
+        if current in confirmed:
+            continue # skip if already confirmed
+        
+        confirmed[current] = (cost, current)
+        
+        # iterate neighbors
+        for neighbor, connected, _ in topology[current]:
+            if not connected:
+                continue # skip if not connected
+            
+            newCost = cost + 1 # cost is 1 for each hop
+            currentCost = confirmed[neighbor][0] if neighbor in confirmed else float('inf')
+
+            # update tentitive
+            if newCost < currentCost:
+                heapq.heappush(tentative, (newCost, neighbor))
+                
+    print(f"\ntentative: {tentative}\n")
+    # build forwarding table
+    forwarding_table = {}
+    for destination in topology:
+        if destination != currentEmulatorIpPortPair:
+            # find the next hop for each destination
+            print("\ndestination: ", destination)
+            print("confirmed: ", confirmed)
+            print("confirmedDest: ", confirmed[destination[0]])
+            nextHop = confirmed[destination[0]][1]
+            print("nextHop: ", nextHop)
+            print("topology: ", topology)
+            forwarding_table[destination] = nextHop
+
+    return forwarding_table
+
+# TODO: Not completed
 def checkNeighborTimeout(currentNeighbors):
     '''
     Check if any of the neighbors have timed out.
@@ -126,9 +181,9 @@ def checkNeighborTimeout(currentNeighbors):
         if time.time() - timeStamp > threshold:
             # update route topology and forwarding table
             
-            # TODO: next, change updateRouteTopology and write updateForwardingTable and buildForwardTable
+            # TODO: write updateForwardingTable and buildForwardTable
             # pass in false here because the neighbor is no longer connected
-            updateRouteTopology((ip, port), currentNeighbors)
+            updateRouteTopology((ip, port), currentNeighbors, False)
             
             # this is where we proabbly call buildForwardTable
             updateForwardingTable()
@@ -137,6 +192,7 @@ def checkNeighborTimeout(currentNeighbors):
             sendLinkStateMessage()
     pass
 
+# Completed
 def createHelloPacket(messageType):
     timeStamp = time.time()
     packetType = 'H' # HelloMessage
@@ -148,17 +204,20 @@ def createHelloPacket(messageType):
     
     return packet
 
+# TODO: Not completed
 def parsePacket(packet):
     packetType = struct.unpack('c', packet[:8])[0]
     
     if packetType == 'H':
         return parseHelloPacket(packet)
 
+# Completed
 def parseHelloPacket(packet):
     timeStamp = struct.unpack('!d', packet[8:9])[0]
     
     return 'H', timeStamp
 
+# Completed
 def sendHelloMessages():
     '''
     Send HelloMessages to all neighbors every second
@@ -170,6 +229,7 @@ def sendHelloMessages():
             packet = createHelloPacket(neighborsIp, neighborsPort, "HelloMessage")
             sock.sendto(packet, (neighborsIp, neighborsPort))
             
+# TODO: Not completed
 def handleHelloMessage(timestamp, address, currentIpPortPair):
     currentNeighbors = topology[currentIpPortPair]
     
@@ -182,17 +242,19 @@ def handleHelloMessage(timestamp, address, currentIpPortPair):
         port = neighbor[0][1]
         if ip == address[0] and port == address[1]:
             if neighbor[1] == False:
-                # update route topology and forwarding table
-                updateRouteTopology(address, currentNeighbors)
+                # update route topology to true and forwarding table
+                updateRouteTopology(address, currentNeighbors, True)
                 updateForwardingTable()
                 
                 # send LinkStateMessage
                 sendLinkStateMessage()
 
+# TODO: Not completed
 def handleLinkStateMessage():
     # update topology
     pass
 
+# Completed
 def updateTimeStamp(timestamp, address, currentNeighbors):
     for neighbor in currentNeighbors:
         ip = neighbor[0][0]
@@ -200,17 +262,21 @@ def updateTimeStamp(timestamp, address, currentNeighbors):
         if ip == address[0] and port == address[1]:
             neighbor[2] = timestamp
 
-def updateRouteTopology(address, currentNeighbors):
+# Completed
+def updateRouteTopology(address, currentNeighbors, status):
     print("update route topology")
     for neighbors in currentNeighbors:
         ip = neighbors[0][0]
         port = neighbors[0][1]
         if ip == address[0] and port == address[1]:
-            neighbors[1] = True
+             # make sure that when we update currentNeighbors, topology is also updated 
+            neighbors[1] = status
 
+# TODO: Not completed
 def updateForwardingTable():
     pass
 
+# TODO: Not completed
 def sendLinkStateMessage():
     print("send link state message")
     #packet = createPacket("LinkStateMessage")
@@ -329,7 +395,15 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
 # MAIN FUNCTION STARTS HERE
       
 # PARSE COMMAND LINE ARGUMENTS
-    
+
+
+readTopology("topology.txt")
+port = '1'
+emulator_hostname = '1.0.0.0'
+print(buildForwardTable())
+
+
+sys.exit(1)
 # Port
 if '-p' in sys.argv:
     p = sys.argv.index('-p')
