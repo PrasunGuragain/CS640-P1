@@ -42,10 +42,11 @@ def readTopology(filename):
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
                 pair = ((ip, port.strip()), True, 0)
+                pair2 = (ip, port.strip()) # only the ip and address
                 
                 # first pair is the ip and port to a node which is running an emulator
                 if i == 0:
-                    ipPortPairInTopology.append(pair)
+                    ipPortPairInTopology.append(pair2)
                     topology[firstPair] = []
                     continue
                 
@@ -116,6 +117,36 @@ def createRoutes():
                 pass
         ''' 
 
+'''
+M = {s}
+for each n in N − {s}
+    C(n) = l(s,n)
+while (N 6= M)
+    M = M ∪ {w} such that C(w) is the minimum for all w in (N − M)
+    for each n in (N − M)
+        C(n) = MIN(C(n),C(w) + l(w,n))
+        
+N = all nodes
+s = current node
+l(i,j) = cost of edge between i and j
+C(n) = cost of path from s to n
+M = set of nodes with confirmed costs
+'''
+
+def buildForwardTable2():
+    currentEmulatorIpPortPair = (emulator_hostname, port)
+    
+    M = [currentEmulatorIpPortPair]
+    
+    N_minus_s = [node for node in ipPortPairInTopology if node != currentEmulatorIpPortPair]
+    
+    print(N_minus_s)
+    
+    for n in N_minus_s:
+        pass 
+    
+    pass
+
 # TODO: Not completed
 def buildForwardTable():
     '''
@@ -157,7 +188,7 @@ def buildForwardTable():
     for destination in topology:
         if destination != currentEmulatorIpPortPair:
             # find the next hop for each destination
-            nextHop = confirmed[destination[0]][1]
+            nextHop = confirmed[destination]
             
             forwarding_table[destination] = nextHop
 
@@ -398,7 +429,7 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
 readTopology("topology.txt")
 port = '1'
 emulator_hostname = '1.0.0.0'
-print(buildForwardTable())
+print(f"\nforwardTable: {buildForwardTable2()}")
 
 
 sys.exit(1)
