@@ -10,8 +10,10 @@ import heapq
 
 '''
 topology = {
-    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
-    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
+    (ip, port): [(ip, port, connected?, timeStamp), (ip, port, connected?, timeStamp), ...],
+    (ip, port): [(ip, port, connected?, timeStamp), (ip, port, connected?, timeStamp), ...],
+
+    (ip, port), connected?, timeStamp): {(ip, port), (ip, port)}
     ...
 }
 '''
@@ -35,11 +37,11 @@ def readTopology(filename):
             ipPortPair = line.split(" ")
             
             firstIp, firstPort = ipPortPair[0].split(",")
-            firstPair = ((firstIp, firstPort), True, 0)
+            firstPair = (firstIp, firstPort) # ((firstIp, firstPort), True, 0)
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
-                pair = (ip, port.strip())
+                pair = ((ip, port.strip()), True, 0)
                 
                 # first pair is the ip and port to a node which is running an emulator
                 if i == 0:
@@ -127,7 +129,7 @@ def buildForwardTable():
     confirmed = {currentEmulatorIpPortPair: (0, None)}
     
     # prirority queue to store nodes with their assiciated cost
-    tentative = [(0, currentEmulatorIpPortPair)]
+    tentative = [(0, node) for node in topology if node != currentEmulatorIpPortPair]
     
     while tentative:
         # pick the entry with the lowest cost
@@ -136,9 +138,9 @@ def buildForwardTable():
             continue # skip if already confirmed
         
         confirmed[current] = (cost, current)
-        
+
         # iterate neighbors
-        for neighbor, connected, _ in topology[current]:
+        for neighbor, connected, _, in topology[current]:
             if not connected:
                 continue # skip if not connected
             
@@ -148,19 +150,15 @@ def buildForwardTable():
             # update tentitive
             if newCost < currentCost:
                 heapq.heappush(tentative, (newCost, neighbor))
-                
-    print(f"\ntentative: {tentative}\n")
+    
+    print("\nconfirmed: ", confirmed)
     # build forwarding table
     forwarding_table = {}
     for destination in topology:
         if destination != currentEmulatorIpPortPair:
             # find the next hop for each destination
-            print("\ndestination: ", destination)
-            print("confirmed: ", confirmed)
-            print("confirmedDest: ", confirmed[destination[0]])
             nextHop = confirmed[destination[0]][1]
-            print("nextHop: ", nextHop)
-            print("topology: ", topology)
+            
             forwarding_table[destination] = nextHop
 
     return forwarding_table
