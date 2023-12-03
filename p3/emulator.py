@@ -167,10 +167,10 @@ def buildForwardTable3():
         next_node = min(tentative, key=lambda x: tentative[x][0])
 
         # Check if the next hop is the destination, and update it accordingly
-        # if next_node == destination_node:
-        #     confirmed[next_node] = (0, current_node)
-        # else:
-        confirmed[next_node] = tentative[next_node]
+        if tentative[next_node][1] == (emulator_hostname, port):
+            confirmed[next_node] = (0, next_node)
+        else:
+            confirmed[next_node] = tentative[next_node]
 
     # Build the forwarding table from the perspective of each source node
     forwarding_table = {}
@@ -462,7 +462,7 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
 # PARSE COMMAND LINE ARGUMENTS
 
 
-readTopology("topology2.txt")
+readTopology("topology.txt")
 port = '1'
 emulator_hostname = '1.0.0.0'
 print(f"\nforwardTable: {buildForwardTable3()}")
