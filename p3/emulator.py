@@ -144,8 +144,44 @@ def buildForwardTable2():
     
     for n in N_minus_s:
         pass 
-    
+
     pass
+
+def buildForwardTable3(): 
+    # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
+    confirmed = {(emulator_hostname, port): (0, None)}
+
+    while True:
+        tentative = {}
+        # For the node just added to the Confirmed list in the previous step, call it node Next and select its LSP
+        for current_node, (cost, _) in confirmed.items():
+            for neighbor_info in topology[current_node]:
+                neighbor, neighbor_cost, _ = neighbor_info
+                total_cost = cost + neighbor_cost
+                if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
+                    tentative[neighbor] = (total_cost, current_node)
+
+        if not tentative:
+            break
+
+        next_node = min(tentative, key=lambda x: tentative[x][0])
+
+        # Check if the next hop is the destination, and update it accordingly
+        # if next_node == destination_node:
+        #     confirmed[next_node] = (0, current_node)
+        # else:
+        confirmed[next_node] = tentative[next_node]
+
+    # Build the forwarding table from the perspective of each source node
+    forwarding_table = {}
+    for source_node, (cost, next_hop) in confirmed.items():
+        forwarding_table[source_node] = (cost, next_hop)
+
+
+
+    print(forwarding_table)
+    return confirmed
+
 
 # TODO: Not completed
 def buildForwardTable():
@@ -426,10 +462,10 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
 # PARSE COMMAND LINE ARGUMENTS
 
 
-readTopology("topology.txt")
+readTopology("topology2.txt")
 port = '1'
 emulator_hostname = '1.0.0.0'
-print(f"\nforwardTable: {buildForwardTable2()}")
+print(f"\nforwardTable: {buildForwardTable3()}")
 
 
 sys.exit(1)
