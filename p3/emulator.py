@@ -41,7 +41,7 @@ def readTopology(filename):
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
-                pair = ((ip, port.strip()), True, 0)
+                pair = ((ip, port.strip()), True, 1)
                 pair2 = (ip, port.strip()) # only the ip and address
                 
                 # first pair is the ip and port to a node which is running an emulator
@@ -150,21 +150,116 @@ def buildForwardTable2():
 def buildForwardTable3(): 
     # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
     confirmed = {(emulator_hostname, port): (0, None)}
-
+    
     while True:
         tentative = {}
+        print(f"\n\n~~~~~~~~~~~~tentative~~~~~~~~~~~~\n{tentative}\n")
         # For the node just added to the Confirmed list in the previous step, call it node Next and select its LSP
         for current_node, (cost, _) in confirmed.items():
+            
+            print(f"\n\n~~~~~~confirmed~~~~~~\n{confirmed}\n")
+            print(f"\nCurrent Node: {current_node}\ncost: {cost}\n")
+
+
             for neighbor_info in topology[current_node]:
-                neighbor, neighbor_cost, _ = neighbor_info
+                print(f"\ntopology[{current_node}]: {topology[current_node]}")
+                print(f"\nneighbor_info: {neighbor_info}")
+                
+                neighbor, _, neighbor_cost  = neighbor_info
+                
+                print(f"\nneighbor: {neighbor}\nneighbor_cost: {neighbor_cost}")
+                
                 total_cost = cost + neighbor_cost
+                
+                print(f"\ntotal_cost: {total_cost}")
+                print(f"confirmed: {confirmed}\ntentative:{tentative}\n")
+                
                 if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
                     tentative[neighbor] = (total_cost, current_node)
-
+                    
+                    print(f"\n~~~~tentative[{neighbor}]:{tentative[neighbor]}~~~~~~")
+        
         if not tentative:
             break
 
         next_node = min(tentative, key=lambda x: tentative[x][0])
+        
+        print(f"\nnext_node: {next_node}\n\n")
+        tentative_next_hop = tentative[next_node][1]
+        # print(f"\ntentative_next_hop: {tentative_next_hop}")
+        print(f"\nconfirmed: {confirmed}")
+        # Check if the next hop is the destination, and update it accordingly
+        if tentative_next_hop == (emulator_hostname, port):
+            confirmed[next_node] = (1, next_node)
+           
+
+        elif(confirmed[tentative_next_hop]):
+            og_cost =  tentative[next_node][0]
+            print(f"~~~~~~~~~~HERHEHEHREH~~~~~~~~~")
+            print(f"\n\nconfirmed[{tentative_next_hop}]: {confirmed[tentative_next_hop]}")
+            while(confirmed[tentative_next_hop][0] != 1):
+                
+
+                print(f"confirmed[tentative_next_hop][0]: {confirmed[tentative_next_hop][0]}")
+                tentative_next_hop = confirmed[tentative_next_hop][1]
+                print(f"tentative_next_hop: {tentative_next_hop}")
+            new_hop = (og_cost,confirmed[tentative_next_hop][1] )
+            confirmed[next_node] = new_hop
+        else:
+            confirmed[next_node] = tentative[next_node]
+    # Build the forwarding table from the perspective of each source node
+    forwarding_table = {}
+    for source_node, (cost, next_hop) in confirmed.items():
+        forwarding_table[source_node] = (cost, next_hop)
+
+
+
+    print(forwarding_table)
+    return confirmed
+
+def buildForwardTable4():
+        # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
+    confirmed = {(emulator_hostname, port): (0, None)}
+    
+    while True:
+        tentative = {}
+        print(f"\n\n~~~~~~~~~~~~tentative~~~~~~~~~~~~\n{tentative}\n")
+        # For the node just added to the Confirmed list in the previous step, call it node Next and select its LSP
+        try:
+            next_node = min(tentative, key=lambda x: tentative[x][0])
+        except ValueError:
+            next_node = (emulator_hostname, port)
+            print(next_node)
+        
+        current_node = next_node
+        print(f"\n\n~~~~~~confirmed~~~~~~\n{confirmed}\n")
+        print(f"\nCurrent Node: {current_node}\ncost: {cost}\n")
+
+
+        for neighbor_info in topology[current_node]:
+            print(f"\ntopology[current_node]: {topology[current_node]}")
+            print(f"\nneighbor_info: {neighbor_info}")
+            
+            neighbor, neighbor_cost, _  = neighbor_info
+            
+            print(f"\nneighbor: {neighbor}\nneighbor_cost: {neighbor_cost}")
+            
+            total_cost = cost + neighbor_cost
+            
+            print(f"\ntotal_cost: {total_cost}")
+            print(f"confirmed: {confirmed}\ntentative:{tentative}\n")
+            
+            if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
+                tentative[neighbor] = (total_cost, current_node)
+                
+                print(f"\ntentative[neighbor]:{tentative[neighbor]}")
+        
+        if not tentative:
+            break
+
+        next_node = min(tentative, key=lambda x: tentative[x][0])
+        
+        print(f"\nnext_node: {next_node}\n\n")
 
         # Check if the next hop is the destination, and update it accordingly
         if tentative[next_node][1] == (emulator_hostname, port):
@@ -181,7 +276,6 @@ def buildForwardTable3():
 
     print(forwarding_table)
     return confirmed
-
 
 # TODO: Not completed
 def buildForwardTable():
