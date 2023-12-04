@@ -10,10 +10,8 @@ import heapq
 
 '''
 topology = {
-    (ip, port): [(ip, port, connected?, timeStamp), (ip, port, connected?, timeStamp), ...],
-    (ip, port): [(ip, port, connected?, timeStamp), (ip, port, connected?, timeStamp), ...],
-
-    (ip, port), connected?, timeStamp): {(ip, port), (ip, port)}
+    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
+    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
     ...
 }
 '''
@@ -41,7 +39,7 @@ def readTopology(filename):
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
-                pair = ((ip, port.strip()), True, 1)
+                pair = ((ip, port.strip()), True, 0)
                 pair2 = (ip, port.strip()) # only the ip and address
                 
                 # first pair is the ip and port to a node which is running an emulator
@@ -52,6 +50,7 @@ def readTopology(filename):
                 
                 # the rest of the pairs are the ip and port to nodes which the emulator will be listening from
                 topology[firstPair].append(pair)
+    buildForwardTable()
     pass
 
 # TODO: Not completed
@@ -62,13 +61,13 @@ def createRoutes():
     Handle HelloMessages and LinkStateMessages for topology updates.
     Detect and react to node state changes.
     '''
-    
-    # get ip and port of this emulator
-    ip = socket.gethostbyname(socket.gethostname())
-    currentIpPortPair = (ip, port)
     currentNeighbors = topology[currentIpPortPair]
     
     while True:
+        '''
+        HelloMessage: At defined intervals, each emulator should send the HelloMessage to its immediate neighbors. 
+        The goal of this message is letting the node know the state of its immediate neighbors.  
+        '''
         # send HelloMessage to immediate neighbors
         sendHelloMessages()
         
@@ -78,7 +77,7 @@ def createRoutes():
             packetType, timeStamp = parsePacket(packet)
             
             if packetType == 'H':
-                handleHelloMessage(timeStamp, address, currentIpPortPair)
+                handleHelloMessage(timeStamp, address)
                 pass
             elif packetType == 'L':
                 handleLinkStateMessage()
@@ -87,240 +86,44 @@ def createRoutes():
             pass
         
         checkNeighborTimeout(currentNeighbors)
-        
-        '''
-        # send HelloMessages to all neighbors every second
-        for ipPortPair in ipPortPairInTopology:
-            for neighbors in topology[ipPortPair]:
-                # send HelloMessage
-                neighborsIp, neighborsPort = neighbors
-                packet = createPacket(neighborsIp, neighborsPort, "HelloMessage")
-                sock.sendto(packet, (neighborsIp, neighborsPort))  
-        
-        # send LinkStateMessages to all neighbors
-        for ipPortPair in ipPortPairInTopology:
-            for neighbors in topology[ipPortPair]:
-                # send LinkStateMessage
-                neighborsIp, neighborsPort = neighbors
-                packet = createPacket("LinkStateMessage")
-                sock.sendto(packet, (neighborsIp, neighborsPort))
-        
-        # receive HelloMessage
-        try:
-            packet, address = sock.recvfrom(5000)
-            timeStamp = parsePacket(packet)
-        except BlockingIOError:
-            pass
-                
-        for ipPortPair in ipPortPairInTopology:
-            for neighbors in topology[ipPortPair]:
-                pass
-        ''' 
 
-'''
-M = {s}
-for each n in N − {s}
-    C(n) = l(s,n)
-while (N 6= M)
-    M = M ∪ {w} such that C(w) is the minimum for all w in (N − M)
-    for each n in (N − M)
-        C(n) = MIN(C(n),C(w) + l(w,n))
-        
-N = all nodes
-s = current node
-l(i,j) = cost of edge between i and j
-C(n) = cost of path from s to n
-M = set of nodes with confirmed costs
-'''
-
-def buildForwardTable2():
-    currentEmulatorIpPortPair = (emulator_hostname, port)
-    
-    M = [currentEmulatorIpPortPair]
-    
-    N_minus_s = [node for node in ipPortPairInTopology if node != currentEmulatorIpPortPair]
-    
-    print(N_minus_s)
-    
-    for n in N_minus_s:
-        pass 
-
-    pass
-
-def buildForwardTable3(): 
+# TODO: almost completed
+def buildForwardTable(): 
     # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
     confirmed = {(emulator_hostname, port): (0, None)}
     
     while True:
         tentative = {}
-        print(f"\n\n~~~~~~~~~~~~tentative~~~~~~~~~~~~\n{tentative}\n")
         # For the node just added to the Confirmed list in the previous step, call it node Next and select its LSP
         for current_node, (cost, _) in confirmed.items():
-            
-            print(f"\n\n~~~~~~confirmed~~~~~~\n{confirmed}\n")
-            print(f"\nCurrent Node: {current_node}\ncost: {cost}\n")
-
-
             for neighbor_info in topology[current_node]:
-                print(f"\ntopology[{current_node}]: {topology[current_node]}")
-                print(f"\nneighbor_info: {neighbor_info}")
-                
-                neighbor, _, neighbor_cost  = neighbor_info
-                
-                print(f"\nneighbor: {neighbor}\nneighbor_cost: {neighbor_cost}")
-                
-                total_cost = cost + neighbor_cost
-                
-                print(f"\ntotal_cost: {total_cost}")
-                print(f"confirmed: {confirmed}\ntentative:{tentative}\n")
-                
-                if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
-                    tentative[neighbor] = (total_cost, current_node)
-                    
-                    print(f"\n~~~~tentative[{neighbor}]:{tentative[neighbor]}~~~~~~")
-        
+                neighbor, connected, _  = neighbor_info
+                if connected:
+                    neighbor_cost = 1
+                    total_cost = cost + neighbor_cost
+                    if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
+                        tentative[neighbor] = (total_cost, current_node)
         if not tentative:
             break
-
         next_node = min(tentative, key=lambda x: tentative[x][0])
-        
-        print(f"\nnext_node: {next_node}\n\n")
         tentative_next_hop = tentative[next_node][1]
-        # print(f"\ntentative_next_hop: {tentative_next_hop}")
-        print(f"\nconfirmed: {confirmed}")
+
         # Check if the next hop is the destination, and update it accordingly
         if tentative_next_hop == (emulator_hostname, port):
             confirmed[next_node] = (1, next_node)
-           
-
         elif(confirmed[tentative_next_hop]):
             og_cost =  tentative[next_node][0]
-            print(f"~~~~~~~~~~HERHEHEHREH~~~~~~~~~")
-            print(f"\n\nconfirmed[{tentative_next_hop}]: {confirmed[tentative_next_hop]}")
             while(confirmed[tentative_next_hop][0] != 1):
-                
-
-                print(f"confirmed[tentative_next_hop][0]: {confirmed[tentative_next_hop][0]}")
                 tentative_next_hop = confirmed[tentative_next_hop][1]
-                print(f"tentative_next_hop: {tentative_next_hop}")
             new_hop = (og_cost,confirmed[tentative_next_hop][1] )
             confirmed[next_node] = new_hop
         else:
             confirmed[next_node] = tentative[next_node]
+            
     # Build the forwarding table from the perspective of each source node
     forwarding_table = {}
     for source_node, (cost, next_hop) in confirmed.items():
         forwarding_table[source_node] = (cost, next_hop)
-
-
-
-    print(forwarding_table)
-    return confirmed
-
-def buildForwardTable4():
-        # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
-    confirmed = {(emulator_hostname, port): (0, None)}
-    
-    while True:
-        tentative = {}
-        print(f"\n\n~~~~~~~~~~~~tentative~~~~~~~~~~~~\n{tentative}\n")
-        # For the node just added to the Confirmed list in the previous step, call it node Next and select its LSP
-        try:
-            next_node = min(tentative, key=lambda x: tentative[x][0])
-        except ValueError:
-            next_node = (emulator_hostname, port)
-            print(next_node)
-        
-        current_node = next_node
-        print(f"\n\n~~~~~~confirmed~~~~~~\n{confirmed}\n")
-        print(f"\nCurrent Node: {current_node}\ncost: {cost}\n")
-
-
-        for neighbor_info in topology[current_node]:
-            print(f"\ntopology[current_node]: {topology[current_node]}")
-            print(f"\nneighbor_info: {neighbor_info}")
-            
-            neighbor, neighbor_cost, _  = neighbor_info
-            
-            print(f"\nneighbor: {neighbor}\nneighbor_cost: {neighbor_cost}")
-            
-            total_cost = cost + neighbor_cost
-            
-            print(f"\ntotal_cost: {total_cost}")
-            print(f"confirmed: {confirmed}\ntentative:{tentative}\n")
-            
-            if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
-                tentative[neighbor] = (total_cost, current_node)
-                
-                print(f"\ntentative[neighbor]:{tentative[neighbor]}")
-        
-        if not tentative:
-            break
-
-        next_node = min(tentative, key=lambda x: tentative[x][0])
-        
-        print(f"\nnext_node: {next_node}\n\n")
-
-        # Check if the next hop is the destination, and update it accordingly
-        if tentative[next_node][1] == (emulator_hostname, port):
-            confirmed[next_node] = (0, next_node)
-        else:
-            confirmed[next_node] = tentative[next_node]
-
-    # Build the forwarding table from the perspective of each source node
-    forwarding_table = {}
-    for source_node, (cost, next_hop) in confirmed.items():
-        forwarding_table[source_node] = (cost, next_hop)
-
-
-
-    print(forwarding_table)
-    return confirmed
-
-# TODO: Not completed
-def buildForwardTable():
-    '''
-    Build the forwarding table based on the current topology.
-    '''
-    currentEmulatorIpPortPair = (emulator_hostname, port)
-    
-    # Dijkstra's algorithm
-    
-    # initialize the confirmed set with the current emulator
-    confirmed = {currentEmulatorIpPortPair: (0, None)}
-    
-    # prirority queue to store nodes with their assiciated cost
-    tentative = [(0, node) for node in topology if node != currentEmulatorIpPortPair]
-    
-    while tentative:
-        # pick the entry with the lowest cost
-        cost, current = heapq.heappop(tentative)
-        if current in confirmed:
-            continue # skip if already confirmed
-        
-        confirmed[current] = (cost, current)
-
-        # iterate neighbors
-        for neighbor, connected, _, in topology[current]:
-            if not connected:
-                continue # skip if not connected
-            
-            newCost = cost + 1 # cost is 1 for each hop
-            currentCost = confirmed[neighbor][0] if neighbor in confirmed else float('inf')
-
-            # update tentitive
-            if newCost < currentCost:
-                heapq.heappush(tentative, (newCost, neighbor))
-    
-    print("\nconfirmed: ", confirmed)
-    # build forwarding table
-    forwarding_table = {}
-    for destination in topology:
-        if destination != currentEmulatorIpPortPair:
-            # find the next hop for each destination
-            nextHop = confirmed[destination]
-            
-            forwarding_table[destination] = nextHop
 
     return forwarding_table
 
@@ -344,17 +147,52 @@ def checkNeighborTimeout(currentNeighbors):
             # pass in false here because the neighbor is no longer connected
             updateRouteTopology((ip, port), currentNeighbors, False)
             
-            # this is where we proabbly call buildForwardTable
-            updateForwardingTable()
+            # re build the forwarding table
+            buildForwardTable()
             
             # send LinkStateMessage
             sendLinkStateMessage()
     pass
 
 # Completed
-def createHelloPacket(messageType):
+def createHelloPacket():
     timeStamp = time.time()
     packetType = 'H' # HelloMessage
+    
+    sendingPacketType = struct.pack('c', packetType.encode('utf-8'))
+    sendingTimeStamp = struct.pack('!d', timeStamp)
+    
+    packet = sendingPacketType + sendingTimeStamp
+    
+    return packet
+
+def createLinkStatePacket():
+    '''
+    LinkStateMessage: At defined intervals, each emulator should send a LinkStateMessage to its immediate neighbors. 
+    It contains the following information:
+        The (ip, port) pair of the node that created the message.
+        A list of directly connected neighbors of that node, with the cost of the link to each one.
+        A sequence number. Incremental by one each time the information b is updated and a new LinkStateMessage is generated. 
+        A time to live (TTL) for this packet. 
+    '''
+    timeStamp = time.time()
+    packetType = 'L' # LinkStateMessage
+    
+    sendingIp = struct.pack('4sH', currentIpPortPair[0].encode('utf-8'))
+    sendingPort = struct.pack('4sH', currentIpPortPair[1].encode('utf-8'))
+    
+    # pack topology[currentIpPortPair]
+    sendingNeighbors = []
+    for neighbor in topology[currentIpPortPair]:
+        if neighbor[1] == False:
+            continue
+        sendingIp = struct.pack('4sH', neighbor[0][0].encode('utf-8'))
+        sendingPort = struct.pack('4sH', neighbor[0][1].encode('utf-8'))
+        sendingConnected = struct.pack('?', neighbor[1])
+        sendingTimeStamp = struct.pack('!d', neighbor[2])
+        sendingNeighbors.append((sendingIp + sendingPort + sendingConnected + sendingTimeStamp))
+    
+    
     
     sendingPacketType = struct.pack('c', packetType.encode('utf-8'))
     sendingTimeStamp = struct.pack('!d', timeStamp)
@@ -379,17 +217,21 @@ def parseHelloPacket(packet):
 # Completed
 def sendHelloMessages():
     '''
-    Send HelloMessages to all neighbors every second
+    Send HelloMessages to all neighbors
     '''
     for ipPortPair in ipPortPairInTopology:
         for neighbors in topology[ipPortPair]:
             # send HelloMessage
             neighborsIp, neighborsPort = neighbors
-            packet = createHelloPacket(neighborsIp, neighborsPort, "HelloMessage")
+            packet = createHelloPacket()
             sock.sendto(packet, (neighborsIp, neighborsPort))
             
 # TODO: Not completed
-def handleHelloMessage(timestamp, address, currentIpPortPair):
+def handleHelloMessage(timestamp, address):
+    '''
+    Similarly, when handling the helloMessage coming from an unavailable neighbor, you should declare it available, 
+    update the route topology and forwarding table, and generate a new LinkStateMessage.
+    '''
     currentNeighbors = topology[currentIpPortPair]
     
     # update the latest timestamp for the specific neighbor
@@ -403,14 +245,16 @@ def handleHelloMessage(timestamp, address, currentIpPortPair):
             if neighbor[1] == False:
                 # update route topology to true and forwarding table
                 updateRouteTopology(address, currentNeighbors, True)
-                updateForwardingTable()
+                
+                # re build the forwarding table
+                buildForwardTable()
                 
                 # send LinkStateMessage
                 sendLinkStateMessage()
 
 # TODO: Not completed
 def handleLinkStateMessage():
-    # update topology
+    # gather all link state messages from all nodes
     pass
 
 # Completed
@@ -459,7 +303,6 @@ def parse_packet(packet):
     packet_type = struct.unpack('c', packet[17:18])[0]
     sequence_number = struct.unpack('!I', packet[18:22])[0]
     payload_length = struct.unpack('!I', packet[22:26])[0]
-    # sys.exit(1)
     payload = packet[26:]
     payload_length = len(payload)
 
@@ -555,14 +398,13 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
       
 # PARSE COMMAND LINE ARGUMENTS
 
+'''
+If 2 goes down:
+dest 3 through 3 with cost 1
+dest 4 through 3 with cost 2
+dest 5 through 3 with cost 3
+'''
 
-readTopology("topology.txt")
-port = '1'
-emulator_hostname = '1.0.0.0'
-print(f"\nforwardTable: {buildForwardTable3()}")
-
-
-sys.exit(1)
 # Port
 if '-p' in sys.argv:
     p = sys.argv.index('-p')
@@ -581,6 +423,9 @@ if '-f' in sys.argv:
 else:
     print("Filename argument (-f) is missing.")
     sys.exit(1)
+    
+ip = socket.gethostbyname(socket.gethostname())
+currentIpPortPair = (ip, port)
             
 # Create a socket for the requester
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
