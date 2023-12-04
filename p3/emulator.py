@@ -26,9 +26,9 @@ ipPortPairInTopology = []
 '''
 The largest sequence number of the received LinkStateMessages from each node except itself. 
 It will be a list of pairs (Node, Largest Seq No). 
-largestSequenceNumber = [(Node, Largest Seq No), (Node, Largest Seq No), ...]
+largestSequenceNumber = {Node: Largest Seq No, Node: Largest Seq No, ...}
 '''
-largestSequenceNumber = []
+largestSequenceNumber = {}
 
 # Completed
 def readTopology(filename):
@@ -57,6 +57,11 @@ def readTopology(filename):
                 
                 # the rest of the pairs are the ip and port to nodes which the emulator will be listening from
                 topology[firstPair].append(pair)
+    
+    # build largestSequenceNumber
+    for node in ipPortPairInTopology:
+        largestSequenceNumber[node] = 0
+    
     buildForwardTable()
     pass
 
@@ -82,15 +87,19 @@ def createRoutes():
         # check for incoming packets
         try:
             packet, address = sock.recvfrom(5000)
-            packetType, timeStamp = parsePacket(packet)
+            
+            # should this be packet[:1] ?
+            packetType = struct.unpack('c', packet[:8])[0]
             
             # Once you receive a packet, decide the type of the packet. 
             
             if packetType == 'H':
+                timeStamp = parseHelloPacket(packet)
                 handleHelloMessage(timeStamp, address)
                 pass
             elif packetType == 'L':
-                handleLinkStateMessage()
+                linkStateInfo = parseLinkStatePacket(packet)
+                handleLinkStateMessage(linkStateInfo, packet)
                 pass
         except BlockingIOError:
             pass
@@ -176,6 +185,7 @@ def createHelloPacket():
     
     return packet
 
+# Completed
 def createLinkStatePacket():
     '''
     LinkStateMessage: At defined intervals, each emulator should send a LinkStateMessage to its immediate neighbors. 
@@ -194,13 +204,12 @@ def createLinkStatePacket():
     # pack directly connected neighbors of that node
     sendingNeighbors = []
     for neighbor in topology[currentIpPortPair]:
-        if neighbor[1] == False:
-            continue
         sendingIp = struct.pack('4sH', neighbor[0][0].encode('utf-8'))
         sendingPort = struct.pack('4sH', neighbor[0][1].encode('utf-8'))
         sendingConnected = struct.pack('?', neighbor[1])
         sendingTimeStamp = struct.pack('!d', neighbor[2])
         sendingNeighbors.append(sendingIp + sendingPort + sendingConnected + sendingTimeStamp)
+        # sendingNeighbors.append(sendingIp + b'~' + sendingPort + b'~' + sendingConnected + b'~'+ sendingTimeStamp)
     
     # pack sequence number
     sequenceNumber = 0
@@ -212,22 +221,41 @@ def createLinkStatePacket():
     sendingSequenceNumber = struct.pack('!I', sequenceNumber)
     sendingTimeToLive = struct.pack('!I', timeToLive)
     
-    packet = sendingPacketType + thisNodeIp + thisNodePort + b''.join(sendingNeighbors) + sendingSequenceNumber + sendingTimeToLive
+    packet = sendingPacketType + thisNodeIp + thisNodePort + b' '.join(sendingNeighbors) + sendingSequenceNumber + sendingTimeToLive
     
     return packet
 
-# TODO: Not completed
-def parsePacket(packet):
-    packetType = struct.unpack('c', packet[:8])[0]
+# Completed
+def parseLinkStatePacket(packet):
+    nodeIp, nodePort = struct.unpack('4sH', packet[1:9])[0]
+    nodeIp = nodeIp.decode('utf-8')
     
-    if packetType == 'H':
-        return parseHelloPacket(packet)
+    neighbors = []
+    while offset < len(packet):
+        neighborInfo = struct.unpack('4sH?d', packet[offset:offset+16])
+        neighborIp, neighborPort, neighborConnected, neighborTimeStamp = neighborInfo
+        neighborIp = neighborIp.decode('utf-8')
+        neighbors.append(((neighborIp, neighborPort), neighborConnected, neighborTimeStamp))
+        offset += 16
+    
+    sequenceNumber, timeToLive = struct.unpack('!II', packet[offset:offset+8])
+    
+    linkStateInfo = {
+        "nodeIpPortPair": (nodeIp, nodePort),
+        "neighbors": neighbors,
+        "sequenceNumber": sequenceNumber,
+        "timeToLive": timeToLive
+    }
+    
+    return linkStateInfo
 
+    
 # Completed
 def parseHelloPacket(packet):
+    # should this be packet[1:?] ?
     timeStamp = struct.unpack('!d', packet[8:9])[0]
     
-    return 'H', timeStamp
+    return timeStamp
 
 # Completed
 def sendHelloMessages():
@@ -241,7 +269,7 @@ def sendHelloMessages():
             packet = createHelloPacket()
             sock.sendto(packet, (neighborsIp, neighborsPort))
             
-# TODO: Not completed
+# TODO: Not completed - sendLinkStateMessage()
 def handleHelloMessage(timestamp, address):
     '''
     If it is a helloMessage, your code should
@@ -275,7 +303,7 @@ def handleHelloMessage(timestamp, address):
                 sendLinkStateMessage()
 
 # TODO: Not completed
-def handleLinkStateMessage():
+def handleLinkStateMessage(linkStateInfo, packet):
     '''
     If it is a LinkSateMessage, your code should 
         Check the largest sequence number of the sender node to determine whether it is an old message. 
@@ -284,8 +312,68 @@ def handleLinkStateMessage():
         Call forwardpacket function to make a process of flooding the LinkStateMessage to its own neighbors.
     '''
     # gather all link state messages from all nodes
+    
+    # check the largest sequence number of the sender node to determine whether it is an old message
+    # if it is an old message, ignore it
+    nodeIpPortPair = linkStateInfo['nodeIpPortPair']
+    if largestSequenceNumber[nodeIpPortPair] > linkStateInfo['sequenceNumber']:
+        return
+    
+    # check if topology changes
+    nodeNeighborsFromLSM = linkStateInfo['neighbors']
+    nodeNeighbors = topology[nodeIpPortPair]
+    for i in range(len(nodeNeighborsFromLSM)): 
+        #neighborIpPortPairFromLSM = nodeNeighborsFromLSM[i][0]
+        neighborConnectedFromLSM = nodeNeighborsFromLSM[i][1]
+        #neighborTimeStampFromLSM = nodeNeighborsFromLSM[i][2]
+        
+        #neighborIpPortPair = nodeNeighbors[i][0]
+        neighborConnected = nodeNeighbors[i][1]
+        #neighborTimeStamp = nodeNeighbors[i][2]
+        
+        if neighborConnectedFromLSM != neighborConnected:
+            # update the route topology and forwarding table stored in this emulator if needed
+            nodeNeighbors[i][1] = neighborConnectedFromLSM
+            
+            # re build the forwarding table
+            buildForwardTable()
+
+            forwardPacket(packet, packetType = 'L')
     pass
 
+def forwardPacket(packet, nodeIpPortPair):
+    '''
+    forwardpacket will determine whether to forward a packet and where to forward a packet received by an emulator in 
+    the network. Your emulator should be able to handle both packets regarding the LinkStateMessage, 
+    and packets that are forwarded to it from the routetrace application (described below). 
+    For LinkStateMessage, you need to forward the LinkStateMessage to all its neighbors except where it comes from. 
+    However, when TTL (time to live) decreases to 0, you don’t need to forward this packet anymore.
+    '''
+    
+
+    print(f"nodeIpPortPair: {nodeIpPortPair}")
+    source_ip = nodeIpPortPair[0]
+    source_port = nodeIpPortPair[1]
+
+    
+
+    # if sender is a neighbor
+    #if (sender_ip, sender_port) in topology[currentIpPortPair]:
+    '''
+    # send to all neighbors except the sender
+    for neighbors in topology[currentIpPortPair]:
+        # if sender is a neighbor
+        if neighbors[1] == True:
+            if neighbors[0][0] == sender_ip and neighbors[0][1] == sender_port:
+                continue
+            sock.sendto(packet, neighbors[0])    if  == 'L':
+    sendLinkStateMessage(source_ip, source_port)
+    '''
+    pass
+
+def sendLinkStateMessage():
+
+    pass 
 # Completed
 def updateTimeStamp(timestamp, address, currentNeighbors):
     for neighbor in currentNeighbors:
