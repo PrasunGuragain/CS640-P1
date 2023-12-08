@@ -45,7 +45,7 @@ def readTopology(filename):
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
-                pair = [[ip, int(port.strip())], True, 0]
+                pair = [[ip, int(port.strip())], True, time.time()]
                 pair2 = (ip, int(port.strip())) # only the ip and address
                 
                 # first pair is the ip and port to a node which is running an emulator
@@ -56,7 +56,7 @@ def readTopology(filename):
                 
                 # the rest of the pairs are the ip and port to nodes which the emulator will be listening from
                 topology[firstPair].append(pair)
-    print(f"topology: {topology}")
+    #print(f"topology: {topology}")
     # build largestSequenceNumber
     for node in ipPortPairInTopology:
         largestSequenceNumber[node] = 0
@@ -87,7 +87,9 @@ def createRoutes():
             packet, address = sock.recvfrom(5000)
             
             # should this be packet[:1] ?
-            packetType = struct.unpack('c', packet[:8])[0]
+            packetType = struct.unpack('c', packet[:1])[0]
+            
+            print(f"Received packet from {address} with packet type {packetType}")
             
             # Once you receive a packet, decide the type of the packet. 
             
@@ -163,14 +165,14 @@ def checkNeighborTimeout():
         ip = neighbor[0][0]
         port = neighbor[0][1]
         timeStamp = neighbor[2]
-        threshold = 100000000 # change to something else later
+        threshold = 1 # change to something else later
         # time = time.time()
-        print(f"checkNeighborTimeout: {time.time() - timeStamp}")
-        print(f"time: {time.time()}")
-        print(f"timeStamp: {timeStamp}")
-        print(f"threshold: {threshold}")
+        #print(f"checkNeighborTimeout: {time.time() - timeStamp}")
+        #print(f"time: {time.time()}")
+        #print(f"timeStamp: {timeStamp}")
+        #print(f"threshold: {threshold}")
         if time.time() - timeStamp > threshold:
-            print(f"Neighbor {ip}:{port} has timed out")
+            #print(f"Neighbor {ip}:{port} has timed out")
             # update route topology and forwarding table
             
             # pass in false here because the neighbor is no longer connected
@@ -281,7 +283,7 @@ def sendHelloMessages():
         neighborsIp, neighborsPort = neighbors[0]
         packet = createHelloPacket()
         sock.sendto(packet, (neighborsIp, neighborsPort))
-        print(f"Sent HelloMessage to {neighbors}")
+        #print(f"Sent HelloMessage to {neighbors}")
             
 # TODO: Completed
 def handleHelloMessage(timestamp, address):
@@ -399,7 +401,7 @@ def updateTimeStamp(timestamp, address):
 
 # Completed
 def updateRouteTopology(address, status):
-    print("update route topology")
+    #print("update route topology")
 
     for neighbors in currentNeighbors:
         ip = neighbors[0][0]
@@ -408,7 +410,8 @@ def updateRouteTopology(address, status):
              # make sure that when we update currentNeighbors, topology is also updated 
             neighbors[1] = status
     # print updated
-    print(f"\n\nUpdated route topology: {topology}")
+    #print(f"\n\nUpdated route topology: {topology}")
+
 # PROJECT 2 BELOW
     
 # this list will have a list that contains [packet, delay_time_started]
@@ -547,6 +550,8 @@ else:
     print("Filename argument (-f) is missing.")
     sys.exit(1)
     
+print(f"Running emulator on port {port}...")
+    
 ip = socket.gethostbyname(socket.gethostname())
 currentIpPortPair = (ip, port)
 
@@ -558,7 +563,7 @@ sock.bind(('0.0.0.0', port))
 sock.setblocking(False)
 
 emulator_hostname = socket.gethostbyname(socket.gethostname())
-
+#print(emulator_hostname)
 readTopology(filename)
 
 currentNeighbors = topology[currentIpPortPair]
