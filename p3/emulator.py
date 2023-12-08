@@ -42,12 +42,12 @@ def readTopology(filename):
             ipPortPair = line.split(" ")
             
             firstIp, firstPort = ipPortPair[0].split(",")
-            firstPair = (firstIp, firstPort) # ((firstIp, firstPort), True, 0)
+            firstPair = (firstIp, int(firstPort)) # ((firstIp, firstPort), True, 0)
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
-                pair = ((ip, port.strip()), True, 0)
-                pair2 = (ip, port.strip()) # only the ip and address
+                pair = ((ip, int(port.strip())), True, 0)
+                pair2 = (ip, int(port.strip())) # only the ip and address
                 
                 # first pair is the ip and port to a node which is running an emulator
                 if i == 0:
@@ -63,6 +63,7 @@ def readTopology(filename):
         largestSequenceNumber[node] = 0
     
     buildForwardTable()
+    
     pass
 
 # TODO: Not completed
@@ -142,6 +143,8 @@ def buildForwardTable():
     for source_node, (cost, next_hop) in confirmed.items():
         forwarding_table[source_node] = (cost, next_hop)
 
+
+    
     return forwarding_table
 
 # TODO: Completed
@@ -258,12 +261,13 @@ def sendHelloMessages():
     '''
     Send HelloMessages to all neighbors
     '''
-    for ipPortPair in ipPortPairInTopology:
-        for neighbors in topology[ipPortPair]:
-            # send HelloMessage
-            neighborsIp, neighborsPort = neighbors
-            packet = createHelloPacket()
-            sock.sendto(packet, (neighborsIp, neighborsPort))
+    for neighbors in topology[currentIpPortPair]:
+        # send HelloMessage
+        
+        neighborsIp, neighborsPort = neighbors[0]
+        packet = createHelloPacket()
+        sock.sendto(packet, (neighborsIp, neighborsPort))
+        print(f"Sent HelloMessage to {neighbors}")
             
 # TODO: Completed
 def handleHelloMessage(timestamp, address):
@@ -529,8 +533,7 @@ else:
     
 ip = socket.gethostbyname(socket.gethostname())
 currentIpPortPair = (ip, port)
-currentNeighbors = topology[currentIpPortPair]
-            
+
 # Create a socket for the requester
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', port))
@@ -540,50 +543,8 @@ sock.setblocking(False)
 
 emulator_hostname = socket.gethostbyname(socket.gethostname())
 
-# create a forwarding table: {(destination, d_port): [(next_hop, next_port), delay, loss_probability]}
-forwarding_table = {}
-with open(filename, 'r') as file:
-    for line in file:
-        columns = line.strip().split()
-        emulator, e_port = columns[0:2]
-        destination, d_port = columns[2:4]
-        next_hop, next_port = columns[4:6]
-        delay = columns[6]
-        loss_probability = columns[7]
+readTopology(filename)
+
+currentNeighbors = topology[currentIpPortPair]
         
-        if (emulator_hostname == emulator) and (str(port) == e_port):
-            forwarding_table[(destination, d_port)] = [(next_hop, next_port), float(delay), float(loss_probability)]
-
-# priority_list = {1: Queue(maxsize = queue_size), 2: Queue(maxsize = queue_size), 3: Queue(maxsize = queue_size)}
-priority_list = {1: Queue(maxsize = 1), 2: Queue(maxsize = 1), 3: Queue(maxsize = 1)}
-
-while True:
-    
-    # Receive a packet
-    try:
-        # Receive packet from network in a non-blocking way. This means that you should not wait/get blocked in the recvfrom function until you get a packet. Check if you have received a packet; If not jump to 4,
-        try:
-            packet, addr = sock.recvfrom(5000)
-            
-            #print("packet: " {packet})
-
-            # Parse the packet
-            priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload = parse_packet(packet)
-
-            #if packet_type == 'E':
-            #next_hop_key = forwarding_table[(dest_ip_address, str(dest_port))][0]
-            #destination_address, destination_port = next_hop_key[0], int(next_hop_key[1])
-            #sock.sendto(packet, (destination_address, destination_port))  
-                  
-            #else:
-            # setting up priority queues, decide where it is to be forwarded
-            routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, length, packet_type, sequence_number, payload_length, payload, sock, filename,packet)
-            send_helper()
-        except BlockingIOError:
-            # Have not received a packet, 2.3 Forwarding Summary step 4
-            # Check if there are delayed packets
-            send_helper()
-            
-    except KeyboardInterrupt:
-            socket.close()
-            sys.exit(0)
+createRoutes()
