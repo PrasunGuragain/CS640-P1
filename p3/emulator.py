@@ -79,21 +79,26 @@ def createRoutes():
         The goal of this message is letting the node know the state of its immediate neighbors.  
         '''
         # send HelloMessage to immediate neighbors
+        # print(f"Sending HelloMessage to immediate neighbors")
         sendHelloMessages()
         
         # Receive packet from network in a non-blocking way. 
         # check for incoming packets
+        # print(f"Checking for incoming packets")
         try:
             packet, address = sock.recvfrom(5000)
+            # print(f"Received packet from {address}")
+
+
             
             # should this be packet[:1] ?
             packetType = struct.unpack('c', packet[:1])[0]
             
-            print(f"Received packet from {address} with packet type {packetType}")
+            # print(f"Received packet from {address} with packet type {packetType}")
             
             # Once you receive a packet, decide the type of the packet. 
-            
-            if packetType == 'H':
+            if packetType == b'H':
+                # print(f"Received HelloMessage from {address}")
                 timeStamp = parseHelloPacket(packet)
                 handleHelloMessage(timeStamp, address)
                 pass
@@ -102,6 +107,7 @@ def createRoutes():
                 handleLinkStateMessage(linkStateInfo, packet, address)
                 pass
         except BlockingIOError:
+            # print(f"\n\n~~~~~~~No incoming packets~~~~~~~\n\n")
             pass
         
         checkNeighborTimeout()
@@ -117,6 +123,8 @@ def buildForwardTable():
         for current_node, (cost, _) in confirmed.items():
             for neighbor_info in topology[current_node]:
                 neighbor, connected, _  = neighbor_info
+                # print(f"\n\nneighbor: {neighbor}")
+                # print(f"\n\nconnected: {connected}")
                 if connected:
                     neighbor_cost = 1
                     total_cost = cost + neighbor_cost
@@ -151,7 +159,7 @@ def buildForwardTable():
         forwarding_table[source_node] = (cost, next_hop)
 
 
-    # print(f"forwarding_table: {forwarding_table}")
+    print(f"\nforwarding_table: {forwarding_table}")
     return forwarding_table
 
 # TODO: Completed
@@ -165,14 +173,14 @@ def checkNeighborTimeout():
         ip = neighbor[0][0]
         port = neighbor[0][1]
         timeStamp = neighbor[2]
-        threshold = 1 # change to something else later
+        threshold = 10 # change to something else later
         # time = time.time()
-        #print(f"checkNeighborTimeout: {time.time() - timeStamp}")
-        #print(f"time: {time.time()}")
-        #print(f"timeStamp: {timeStamp}")
-        #print(f"threshold: {threshold}")
+        # print(f"\ncheckNeighborTimeout: {time.time() - timeStamp}")
+        # print(f"time: {time.time()}")
+        # print(f"timeStamp: {timeStamp}")
+        # print(f"threshold: {threshold}")
         if time.time() - timeStamp > threshold:
-            #print(f"Neighbor {ip}:{port} has timed out")
+            print(f"Neighbor {ip}:{port} has timed out")
             # update route topology and forwarding table
             
             # pass in false here because the neighbor is no longer connected
@@ -184,6 +192,9 @@ def checkNeighborTimeout():
             
             # send LinkStateMessage
             sendLinkStateMessage()
+            # print(f"Sent LinkStateMessage to all neighbors")
+            # sys.quit(1)
+        
     pass
 
 # Completed
@@ -268,8 +279,7 @@ def parseLinkStatePacket(packet):
 # Completed
 def parseHelloPacket(packet):
     # should this be packet[1:?] ?
-    timeStamp = struct.unpack('!d', packet[8:9])[0]
-    
+    timeStamp = struct.unpack('!d', packet[1:9])[0]
     return timeStamp
 
 # Completed
@@ -410,7 +420,7 @@ def updateRouteTopology(address, status):
              # make sure that when we update currentNeighbors, topology is also updated 
             neighbors[1] = status
     # print updated
-    #print(f"\n\nUpdated route topology: {topology}")
+    print(f"\n\nUpdated route topology: {topology}")
 
 # PROJECT 2 BELOW
     
