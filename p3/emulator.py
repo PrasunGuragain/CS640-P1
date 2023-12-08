@@ -73,8 +73,6 @@ def createRoutes():
     Handle HelloMessages and LinkStateMessages for topology updates.
     Detect and react to node state changes.
     '''
-    currentNeighbors = topology[currentIpPortPair]
-    
     while True:
         '''
         HelloMessage: At defined intervals, each emulator should send the HelloMessage to its immediate neighbors. 
@@ -99,12 +97,12 @@ def createRoutes():
                 pass
             elif packetType == 'L':
                 linkStateInfo = parseLinkStatePacket(packet)
-                handleLinkStateMessage(linkStateInfo, packet)
+                handleLinkStateMessage(linkStateInfo, packet, address)
                 pass
         except BlockingIOError:
             pass
         
-        checkNeighborTimeout(currentNeighbors)
+        checkNeighborTimeout()
 
 # TODO: almost completed
 def buildForwardTable(): 
@@ -146,8 +144,8 @@ def buildForwardTable():
 
     return forwarding_table
 
-# TODO: Not completed - sendLinkStateMessage()
-def checkNeighborTimeout(currentNeighbors):
+# TODO: Completed
+def checkNeighborTimeout():
     '''
     Check if any of the neighbors have timed out.
     If a neighbor has timed out, update the route topology and forwarding table.
@@ -162,9 +160,8 @@ def checkNeighborTimeout(currentNeighbors):
         if time.time() - timeStamp > threshold:
             # update route topology and forwarding table
             
-            # TODO: write updateForwardingTable and buildForwardTable
             # pass in false here because the neighbor is no longer connected
-            updateRouteTopology((ip, port), currentNeighbors, False)
+            updateRouteTopology((ip, port), False)
             
             # re build the forwarding table
             buildForwardTable()
@@ -249,7 +246,6 @@ def parseLinkStatePacket(packet):
     
     return linkStateInfo
 
-    
 # Completed
 def parseHelloPacket(packet):
     # should this be packet[1:?] ?
@@ -269,7 +265,7 @@ def sendHelloMessages():
             packet = createHelloPacket()
             sock.sendto(packet, (neighborsIp, neighborsPort))
             
-# TODO: Not completed - sendLinkStateMessage()
+# TODO: Completed
 def handleHelloMessage(timestamp, address):
     '''
     If it is a helloMessage, your code should
@@ -285,7 +281,7 @@ def handleHelloMessage(timestamp, address):
     currentNeighbors = topology[currentIpPortPair]
     
     # update the latest timestamp for the specific neighbor
-    updateTimeStamp(timestamp, address, currentNeighbors)
+    updateTimeStamp(timestamp, address)
     
     # check if the sender was previously unavilable
     for neighbor in currentNeighbors:
@@ -294,7 +290,7 @@ def handleHelloMessage(timestamp, address):
         if ip == address[0] and port == address[1]:
             if neighbor[1] == False:
                 # update route topology to true and forwarding table
-                updateRouteTopology(address, currentNeighbors, True)
+                updateRouteTopology(address, True)
                 
                 # re build the forwarding table
                 buildForwardTable()
@@ -302,8 +298,8 @@ def handleHelloMessage(timestamp, address):
                 # send LinkStateMessage
                 sendLinkStateMessage()
 
-# TODO: Not completed
-def handleLinkStateMessage(linkStateInfo, packet):
+# Completed
+def handleLinkStateMessage(linkStateInfo, packet, address):
     '''
     If it is a LinkSateMessage, your code should 
         Check the largest sequence number of the sender node to determine whether it is an old message. 
@@ -323,13 +319,9 @@ def handleLinkStateMessage(linkStateInfo, packet):
     nodeNeighborsFromLSM = linkStateInfo['neighbors']
     nodeNeighbors = topology[nodeIpPortPair]
     for i in range(len(nodeNeighborsFromLSM)): 
-        #neighborIpPortPairFromLSM = nodeNeighborsFromLSM[i][0]
         neighborConnectedFromLSM = nodeNeighborsFromLSM[i][1]
-        #neighborTimeStampFromLSM = nodeNeighborsFromLSM[i][2]
         
-        #neighborIpPortPair = nodeNeighbors[i][0]
         neighborConnected = nodeNeighbors[i][1]
-        #neighborTimeStamp = nodeNeighbors[i][2]
         
         if neighborConnectedFromLSM != neighborConnected:
             # update the route topology and forwarding table stored in this emulator if needed
@@ -338,10 +330,11 @@ def handleLinkStateMessage(linkStateInfo, packet):
             # re build the forwarding table
             buildForwardTable()
 
-            forwardPacket(packet, packetType = 'L')
+            forwardPacket(packet, 'L', address, nodeIpPortPair)
     pass
 
-def forwardPacket(packet, nodeIpPortPair):
+# TODO: Not completed - only handled packets regarding LinkStateMessage
+def forwardPacket(packet, packetType, address, nodeIpPortPair):
     '''
     forwardpacket will determine whether to forward a packet and where to forward a packet received by an emulator in 
     the network. Your emulator should be able to handle both packets regarding the LinkStateMessage, 
@@ -349,33 +342,37 @@ def forwardPacket(packet, nodeIpPortPair):
     For LinkStateMessage, you need to forward the LinkStateMessage to all its neighbors except where it comes from. 
     However, when TTL (time to live) decreases to 0, you don’t need to forward this packet anymore.
     '''
-    
-
-    print(f"nodeIpPortPair: {nodeIpPortPair}")
-    source_ip = nodeIpPortPair[0]
-    source_port = nodeIpPortPair[1]
-
-    
-
-    # if sender is a neighbor
-    #if (sender_ip, sender_port) in topology[currentIpPortPair]:
-    '''
-    # send to all neighbors except the sender
-    for neighbors in topology[currentIpPortPair]:
-        # if sender is a neighbor
-        if neighbors[1] == True:
-            if neighbors[0][0] == sender_ip and neighbors[0][1] == sender_port:
+    if packetType == 'L':
+        # forward the LinkStateMessage to all its neighbors except where it comes from
+        for neighbor in currentNeighbors:
+            if neighbor[1] == False:
                 continue
-            sock.sendto(packet, neighbors[0])    if  == 'L':
-    sendLinkStateMessage(source_ip, source_port)
-    '''
-    pass
+            
+            ip = neighbor[0][0]
+            port = neighbor[0][1]
+            
+            # neighbor that sent the packet
+            if ip == address[0] and port == address[1]: 
+                continue
+            
+            # source node of the packet
+            if ip == nodeIpPortPair[0] and port == nodeIpPortPair[1]:
+                continue
+            
+            sock.sendto(packet, (ip, port))
 
-def sendLinkStateMessage():
-
-    pass 
 # Completed
-def updateTimeStamp(timestamp, address, currentNeighbors):
+def sendLinkStateMessage():
+    packet = createLinkStatePacket()
+    for neighbor in currentNeighbors:
+        if neighbor[1] == False:
+            continue
+        ip = neighbor[0][0]
+        port = neighbor[0][1]
+        sock.sendto(packet, (ip, port)) 
+
+# Completed
+def updateTimeStamp(timestamp, address):
     for neighbor in currentNeighbors:
         ip = neighbor[0][0]
         port = neighbor[0][1]
@@ -383,7 +380,7 @@ def updateTimeStamp(timestamp, address, currentNeighbors):
             neighbor[2] = timestamp
 
 # Completed
-def updateRouteTopology(address, currentNeighbors, status):
+def updateRouteTopology(address, status):
     print("update route topology")
     for neighbors in currentNeighbors:
         ip = neighbors[0][0]
@@ -391,18 +388,6 @@ def updateRouteTopology(address, currentNeighbors, status):
         if ip == address[0] and port == address[1]:
              # make sure that when we update currentNeighbors, topology is also updated 
             neighbors[1] = status
-
-# TODO: Not completed
-def updateForwardingTable():
-    pass
-
-# TODO: Not completed
-def sendLinkStateMessage():
-    print("send link state message")
-    packet = createLinkStatePacket()
-    #packet = createPacket("LinkStateMessage")
-    #sock.sendto(packet, (address[0], address[1]))
-    pass
 
 # PROJECT 2 BELOW
     
@@ -513,16 +498,16 @@ def routing(priority, src_ip_address, src_port, dest_ip_address, dest_port, leng
         #log_event(log, message)
 
 # MAIN FUNCTION STARTS HERE
-      
-# PARSE COMMAND LINE ARGUMENTS
 
 '''
+Example topology:
 If 2 goes down:
 dest 3 through 3 with cost 1
 dest 4 through 3 with cost 2
 dest 5 through 3 with cost 3
 '''
 
+# parse command line
 # Port
 if '-p' in sys.argv:
     p = sys.argv.index('-p')
@@ -544,6 +529,7 @@ else:
     
 ip = socket.gethostbyname(socket.gethostname())
 currentIpPortPair = (ip, port)
+currentNeighbors = topology[currentIpPortPair]
             
 # Create a socket for the requester
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
