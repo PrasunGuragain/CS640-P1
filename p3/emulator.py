@@ -10,9 +10,8 @@ import heapq
 
 '''
 topology = {
-    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
-    (ip, port): [((ip, port), connected?, timeStamp), ((ip, port), connected?, timeStamp), ...],
-    ...
+    (ip, port): [[[ip, port], connected?, timeStamp], [[ip, port], connected?, timeStamp], ...],
+    (ip, port): [[[ip, port], connected?, timeStamp], [[ip, port], connected?, timeStamp], ...],
 }
 '''
 topology = {}
@@ -46,7 +45,7 @@ def readTopology(filename):
             
             for i in range(len(ipPortPair)):
                 ip, port = ipPortPair[i].split(",")
-                pair = ((ip, int(port.strip())), True, 0)
+                pair = [[ip, int(port.strip())], True, 0]
                 pair2 = (ip, int(port.strip())) # only the ip and address
                 
                 # first pair is the ip and port to a node which is running an emulator
@@ -57,7 +56,7 @@ def readTopology(filename):
                 
                 # the rest of the pairs are the ip and port to nodes which the emulator will be listening from
                 topology[firstPair].append(pair)
-    
+    print(f"topology: {topology}")
     # build largestSequenceNumber
     for node in ipPortPairInTopology:
         largestSequenceNumber[node] = 0
@@ -119,8 +118,14 @@ def buildForwardTable():
                 if connected:
                     neighbor_cost = 1
                     total_cost = cost + neighbor_cost
-                    if neighbor not in confirmed and (neighbor not in tentative or total_cost < tentative[neighbor][0]):
-                        tentative[neighbor] = (total_cost, current_node)
+
+                    # print(f"confirmed: {confirmed}")
+                    # create neighbor tuple
+                    neighbor_tuple = (neighbor[0], neighbor[1])
+
+
+                    if neighbor_tuple not in confirmed and (neighbor_tuple not in tentative or total_cost < tentative[neighbor_tuple][0]):
+                        tentative[neighbor_tuple] = (total_cost, current_node)
         if not tentative:
             break
         next_node = min(tentative, key=lambda x: tentative[x][0])
@@ -144,7 +149,7 @@ def buildForwardTable():
         forwarding_table[source_node] = (cost, next_hop)
 
 
-    
+    # print(f"forwarding_table: {forwarding_table}")
     return forwarding_table
 
 # TODO: Completed
@@ -158,12 +163,18 @@ def checkNeighborTimeout():
         ip = neighbor[0][0]
         port = neighbor[0][1]
         timeStamp = neighbor[2]
-        threshold = 1 # change to something else later
-        
+        threshold = 100000000 # change to something else later
+        # time = time.time()
+        print(f"checkNeighborTimeout: {time.time() - timeStamp}")
+        print(f"time: {time.time()}")
+        print(f"timeStamp: {timeStamp}")
+        print(f"threshold: {threshold}")
         if time.time() - timeStamp > threshold:
+            print(f"Neighbor {ip}:{port} has timed out")
             # update route topology and forwarding table
             
             # pass in false here because the neighbor is no longer connected
+            
             updateRouteTopology((ip, port), False)
             
             # re build the forwarding table
@@ -198,17 +209,20 @@ def createLinkStatePacket():
     packetType = 'L' # LinkStateMessage
     
     # pack (ip, port) pair of the node that created the message
-    thisNodeIp = struct.pack('4sH', currentIpPortPair[0].encode('utf-8'))
-    thisNodePort = struct.pack('4sH', currentIpPortPair[1].encode('utf-8'))
+    # thisNodeIp = struct.pack('!4sH', currentIpPortPair[0].encode('utf-8'))
+    thisNodeIpPort = struct.pack('!4sH', currentIpPortPair[0].encode('utf-8'), currentIpPortPair[1])
+    # thisNodePort = struct.pack('!2sH', currentIpPortPair[1].encode('utf-8'))
+
     
     # pack directly connected neighbors of that node
     sendingNeighbors = []
     for neighbor in topology[currentIpPortPair]:
-        sendingIp = struct.pack('4sH', neighbor[0][0].encode('utf-8'))
-        sendingPort = struct.pack('4sH', neighbor[0][1].encode('utf-8'))
+        # sendingIp = struct.pack('!2sH', neighbor[0][0].encode('utf-8'))
+        # sendingPort = struct.pack('!2sH', neighbor[0][1].encode('utf-8'))
+        sendingNodeIpPort = struct.pack('!4sH', neighbor[0][0].encode('utf-8'), neighbor[0][1])
         sendingConnected = struct.pack('?', neighbor[1])
         sendingTimeStamp = struct.pack('!d', neighbor[2])
-        sendingNeighbors.append(sendingIp + sendingPort + sendingConnected + sendingTimeStamp)
+        sendingNeighbors.append(sendingNodeIpPort + sendingConnected + sendingTimeStamp)
         # sendingNeighbors.append(sendingIp + b'~' + sendingPort + b'~' + sendingConnected + b'~'+ sendingTimeStamp)
     
     # pack sequence number
@@ -221,7 +235,7 @@ def createLinkStatePacket():
     sendingSequenceNumber = struct.pack('!I', sequenceNumber)
     sendingTimeToLive = struct.pack('!I', timeToLive)
     
-    packet = sendingPacketType + thisNodeIp + thisNodePort + b' '.join(sendingNeighbors) + sendingSequenceNumber + sendingTimeToLive
+    packet = sendingPacketType + thisNodeIpPort + b' '.join(sendingNeighbors) + sendingSequenceNumber + sendingTimeToLive
     
     return packet
 
@@ -386,13 +400,15 @@ def updateTimeStamp(timestamp, address):
 # Completed
 def updateRouteTopology(address, status):
     print("update route topology")
+
     for neighbors in currentNeighbors:
         ip = neighbors[0][0]
         port = neighbors[0][1]
         if ip == address[0] and port == address[1]:
              # make sure that when we update currentNeighbors, topology is also updated 
             neighbors[1] = status
-
+    # print updated
+    print(f"\n\nUpdated route topology: {topology}")
 # PROJECT 2 BELOW
     
 # this list will have a list that contains [packet, delay_time_started]
