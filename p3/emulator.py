@@ -31,6 +31,7 @@ largestSequenceNumber = {}
 
 # Completed
 def readTopology(filename):
+    print("Reading topology...\n")
     '''
     Write a function to read the topology file and initialize the emulator with the network structure.
     Ensure that the emulator knows its neighbors.
@@ -61,12 +62,16 @@ def readTopology(filename):
     for node in ipPortPairInTopology:
         largestSequenceNumber[node] = 0
     
-    buildForwardTable()
+    print(f"Topology:")
+    for node, neighbors in topology.items():
+        print(f"{node}: {neighbors}")
+    print("\n")
     
-    pass
+    buildForwardTable()
 
 # TODO: Not completed
 def createRoutes():
+    print("Creating routes...\n")
     '''
     Refer to the course textbook pages 252-258 for details on the link-state protocol.
     Implement the link-state routing protocol to set up a shortest path forwarding table.
@@ -87,12 +92,11 @@ def createRoutes():
         # print(f"Checking for incoming packets")
         try:
             packet, address = sock.recvfrom(5000)
-            # print(f"Received packet from {address}")
+            #print(f"Received packet from {address}\n")
 
-
-            
             # should this be packet[:1] ?
             packetType = struct.unpack('c', packet[:1])[0]
+            #print(f"packetType: {packetType}\n")
             
             # print(f"Received packet from {address} with packet type {packetType}")
             
@@ -114,6 +118,7 @@ def createRoutes():
 
 # TODO: almost completed
 def buildForwardTable(): 
+    #print("Building forwarding table...\n")
     # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
     confirmed = {(emulator_hostname, port): (0, None)}
     
@@ -126,6 +131,7 @@ def buildForwardTable():
                 # print(f"\n\nneighbor: {neighbor}")
                 # print(f"\n\nconnected: {connected}")
                 if connected:
+                    #print(f"neighbor: {neighbor}")
                     neighbor_cost = 1
                     total_cost = cost + neighbor_cost
 
@@ -158,9 +164,12 @@ def buildForwardTable():
     for source_node, (cost, next_hop) in confirmed.items():
         forwarding_table[source_node] = (cost, next_hop)
 
-
-    print(f"\nforwarding_table: {forwarding_table}")
-    return forwarding_table
+    #'''
+    print(f"Forwarding table:")
+    for node, neighbors in forwarding_table.items():
+        print(f"{node}: {neighbors}")
+    print("\n")
+    #'''
 
 # TODO: Completed
 def checkNeighborTimeout():
@@ -186,6 +195,11 @@ def checkNeighborTimeout():
             # pass in false here because the neighbor is no longer connected
             
             updateRouteTopology((ip, port), False)
+            
+            print(f"Topology:")
+            for node, neighbors in topology.items():
+                print(f"{node}: {neighbors}")
+            print("\n")
             
             # re build the forwarding table
             buildForwardTable()
@@ -293,10 +307,11 @@ def sendHelloMessages():
         neighborsIp, neighborsPort = neighbors[0]
         packet = createHelloPacket()
         sock.sendto(packet, (neighborsIp, neighborsPort))
-        #print(f"Sent HelloMessage to {neighbors}")
+        #print(f"Sent HelloMessage to {neighbors[0]}\n")
             
 # TODO: Completed
 def handleHelloMessage(timestamp, address):
+    #print("Handling HelloMessage...\n")
     '''
     If it is a helloMessage, your code should
         Update the latest timestamp for receiving the helloMessage from the specific neighbor.
@@ -308,6 +323,7 @@ def handleHelloMessage(timestamp, address):
     Similarly, when handling the helloMessage coming from an unavailable neighbor, you should declare it available, 
     update the route topology and forwarding table, and generate a new LinkStateMessage.
     '''
+    #print(f"Handling HelloMessage from {address}\n")
     currentNeighbors = topology[currentIpPortPair]
     
     # update the latest timestamp for the specific neighbor
@@ -330,6 +346,7 @@ def handleHelloMessage(timestamp, address):
 
 # Completed
 def handleLinkStateMessage(linkStateInfo, packet, address):
+    #print("Handling LinkStateMessage...\n")
     '''
     If it is a LinkSateMessage, your code should 
         Check the largest sequence number of the sender node to determine whether it is an old message. 
@@ -354,6 +371,7 @@ def handleLinkStateMessage(linkStateInfo, packet, address):
         neighborConnected = nodeNeighbors[i][1]
         
         if neighborConnectedFromLSM != neighborConnected:
+            print(f"Since it was {neighborConnected} and now it is {neighborConnectedFromLSM} for {address}, topology has changed\n")
             # update the route topology and forwarding table stored in this emulator if needed
             nodeNeighbors[i][1] = neighborConnectedFromLSM
             
@@ -400,6 +418,7 @@ def sendLinkStateMessage():
         ip = neighbor[0][0]
         port = neighbor[0][1]
         sock.sendto(packet, (ip, port)) 
+        #print(f"Sent LinkStateMessage to {neighbor[0]}\n")
 
 # Completed
 def updateTimeStamp(timestamp, address):
@@ -420,7 +439,7 @@ def updateRouteTopology(address, status):
              # make sure that when we update currentNeighbors, topology is also updated 
             neighbors[1] = status
     # print updated
-    print(f"\n\nUpdated route topology: {topology}")
+    #print(f"\n\nUpdated route topology: {topology}")
 
 # PROJECT 2 BELOW
     
