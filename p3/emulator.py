@@ -191,7 +191,7 @@ def checkNeighborTimeout():
         if neighbor[1] == False:
             continue
         if time.time() - timeStamp > threshold:
-            print(f"Neighbor {ip}:{port} has timed out")
+            print(f"Neighbor {ip}:{port} has timed out\n")
             # update route topology and forwarding table
             
             # pass in false here because the neighbor is no longer connected
@@ -238,24 +238,14 @@ def createLinkStatePacket():
     packetType = 'L' # LinkStateMessage
     
     # pack (ip, port) pair of the node that created the message
-    # thisNodeIp = struct.pack('!4sH', currentIpPortPair[0].encode('utf-8'))
-    # thisNodePort = struct.pack('!2sH', currentIpPortPair[1].encode('utf-8'))
-    
-    #print(f"currentIpPortPair: {currentIpPortPair}\n")
-    # src_ip_address = struct.pack('4s', socket.inet_aton(socket.gethostbyname(socket.gethostname())))
-    #src_ip_address = socket.inet_ntoa(struct.unpack('4s', packet[1:5])[0])
     thisNodeIp = struct.pack('4s', socket.inet_aton(currentIpPortPair[0]))
     thisNodePort = struct.pack('H', currentIpPortPair[1]) #, HcurrentIpPortPair[1])
-    
-    #print(f"thisNodeIpPort: {thisNodeIp}\n")
-    #print(f"thisNodePort: {thisNodePort}\n")
     
     # pack directly connected neighbors of that node
     sendingNeighbors = []
     for neighbor in topology[currentIpPortPair]:
-        sendingNodeIp = socket.inet_ntoa( struct.unpack('4s', neighbor[0][0]))
-        sendingNodePort = socket.inet_ntoa( struct.unpack('4s', neighbor[0][0]))
-        # sendingNodeIpPort = struct.pack('!4sH', neighbor[0][0].encode('utf-8'), neighbor[0][1])
+        sendingNodeIp = struct.pack('4s', socket.inet_aton(neighbor[0][0]))
+        sendingNodePort = struct.pack('H', int(neighbor[0][1]))
         sendingConnected = struct.pack('?', neighbor[1])
         sendingTimeStamp = struct.pack('!d', neighbor[2])
         sendingNeighbors.append(sendingNodeIp + sendingNodePort + sendingConnected + sendingTimeStamp)
@@ -283,6 +273,9 @@ def parseLinkStatePacket(packet):
     neighbor_info_format = '!4sH?d'
     sequence_number_format = '!I'
     time_to_live_format = '!I'
+    neighbor_ip_format = '!4s'
+    neighbor_connected_format = '?'
+    neighbor_time_stamp_format = '!d'
     
     # Unpack the packet type
     packetType = struct.unpack(header_format, packet[:struct.calcsize(header_format)])[0]
@@ -295,21 +288,25 @@ def parseLinkStatePacket(packet):
     nodePort = struct.unpack('H', packet[:struct.calcsize(node_port_format)])[0]
     packet = packet[struct.calcsize(node_port_format):]
     
-    
-    '''
-    # unpack neighbor infos
+    nodeIpPortPair = (nodeIp, nodePort)
     neighbors = []
-    while packet:
-        print(f"packet: {packet}\n")
-        print(f"packet[:struct.calcsize(neighbor_info_format)]: {packet[:struct.calcsize(neighbor_info_format)]}\n")
+    for _ in topology[nodeIpPortPair]:
+        # unpack neighbor ip
+        sendingIp = socket.inet_ntoa( struct.unpack( node_ip_format, packet[ :struct.calcsize(node_ip_format) ] )[0] )
+        packet = packet[struct.calcsize(node_ip_format):]
         
-        neighborInfo = struct.unpack(neighbor_info_format, packet[:struct.calcsize(neighbor_info_format)])
+        sendingPort = struct.unpack(node_port_format, packet[:struct.calcsize(node_port_format)])[0]
+        packet = packet[struct.calcsize(node_port_format):]
         
-        print(f"neighborInfo: {neighborInfo}\n")
+        sendingNeighborConnected = struct.unpack(neighbor_connected_format, packet[:struct.calcsize(neighbor_connected_format)])[0]
+        packet = packet[struct.calcsize(neighbor_connected_format):]
         
-        neighbors.append(neighborInfo)
-        packet = packet[struct.calcsize(neighbor_info_format):]
-    '''
+        sendingNeighborTimeStamp = struct.unpack(neighbor_time_stamp_format, packet[:struct.calcsize(neighbor_time_stamp_format)])[0]
+        packet = packet[struct.calcsize(neighbor_time_stamp_format):]
+        
+        packedNeighbor = [sendingIp, sendingPort, sendingNeighborConnected, sendingNeighborTimeStamp]
+        neighbors.append(packedNeighbor)
+        
     
     # unpack sequence number
     sequenceNumber = struct.unpack(sequence_number_format, packet[:struct.calcsize(sequence_number_format)])[0]
@@ -326,6 +323,12 @@ def parseLinkStatePacket(packet):
     }
     
     for key, info in linkStateInfo.items():
+        if key == "neighbors":
+            print(f"{key}:")
+            for neighbor in info:
+                print(f"\t{neighbor}")
+            print()
+            continue
         print(f"{key}: {info}\n")
         
     sys.exit(1)
