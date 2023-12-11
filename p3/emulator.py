@@ -29,6 +29,8 @@ largestSequenceNumber = {Node: Largest Seq No, Node: Largest Seq No, ...}
 '''
 largestSequenceNumber = {}
 
+sequenceNumber = 0
+
 # Completed
 def readTopology(filename):
     print("Reading topology...\n")
@@ -62,10 +64,7 @@ def readTopology(filename):
     for node in ipPortPairInTopology:
         largestSequenceNumber[node] = 0
     
-    print(f"Topology:")
-    for node, neighbors in topology.items():
-        print(f"{node}: {neighbors}")
-    print("\n")
+    printTopology()
     
     buildForwardTable()
 
@@ -107,7 +106,7 @@ def createRoutes():
                 handleHelloMessage(timeStamp, address)
                 pass
             elif packetType == b'L':
-                linkStateInfo = parseLinkStatePacket(packet)
+                linkStateInfo = parseLinkStatePacket(packet, address)
                 handleLinkStateMessage(linkStateInfo, packet, address)
                 pass
         except BlockingIOError:
@@ -165,9 +164,19 @@ def buildForwardTable():
         forwarding_table[source_node] = (cost, next_hop)
 
     #'''
-    print(f"Forwarding table:")
+    print(f"Forwarding table:\n")
     for node, neighbors in forwarding_table.items():
-        print(f"{node}: {neighbors}")
+        if node == (emulator_hostname, port):
+            continue
+        ignore = False
+        for neighbor in topology[(emulator_hostname, port)]:
+            if neighbor[0] == node:
+                if neighbor[1] == False:
+                    ignore = True
+        if ignore:
+            continue
+        print(f"{node[0]},{node[1]} ", end='')
+        print(f"{neighbors[1][0]},{neighbors[1][1]}")
     print("\n")
     #'''
 
@@ -198,11 +207,6 @@ def checkNeighborTimeout():
             
             updateRouteTopology((ip, port), False)
             
-            print(f"Topology:")
-            for node, neighbors in topology.items():
-                print(f"{node}: {neighbors}")
-            print("\n")
-            
             # re build the forwarding table
             buildForwardTable()
             
@@ -227,6 +231,7 @@ def createHelloPacket():
 
 # Completed
 def createLinkStatePacket():
+    global sequenceNumber
     '''
     LinkStateMessage: At defined intervals, each emulator should send a LinkStateMessage to its immediate neighbors. 
     It contains the following information:
@@ -250,9 +255,6 @@ def createLinkStatePacket():
         sendingTimeStamp = struct.pack('!d', neighbor[2])
         sendingNeighbors.append(sendingNodeIp + sendingNodePort + sendingConnected + sendingTimeStamp)
     
-    # pack sequence number
-    sequenceNumber = 0
-    
     # pack time to live
     timeToLive = 0
     
@@ -262,10 +264,13 @@ def createLinkStatePacket():
     
     packet = sendingPacketType + thisNodeIp + thisNodePort + b' '.join(sendingNeighbors) + sendingSequenceNumber + sendingTimeToLive
     
+    # update sequence number for next packet
+    sequenceNumber += 1
+    
     return packet
 
 # Completed
-def parseLinkStatePacket(packet):
+def parseLinkStatePacket(packet, address):
     # Define the format strings for unpacking
     header_format = 'c'
     node_ip_format = '4s'
@@ -308,17 +313,10 @@ def parseLinkStatePacket(packet):
         
         sendingNeighborTimeStamp = struct.unpack(neighbor_time_stamp_format, packet[:struct.calcsize(neighbor_time_stamp_format)])[0]
         
-        print(f"sendingIp: {sendingIp}")
-        print(f"sendingPort: {sendingPort}")
-        print(f"sendingNeighborConnected: {sendingNeighborConnected}")
-        print(f"sendingNeighborTimeStamp: {sendingNeighborTimeStamp}\n")
-        
-        #sys.exit(1)
-        
         packedNeighbor = [sendingIp, sendingPort, sendingNeighborConnected, sendingNeighborTimeStamp]
         neighbors.append(packedNeighbor)
         
-    
+    packet = packet[struct.calcsize(neighbor_time_stamp_format):]
     # unpack sequence number
     sequenceNumber = struct.unpack(sequence_number_format, packet[:struct.calcsize(sequence_number_format)])[0]
     packet = packet[struct.calcsize(sequence_number_format):]
@@ -333,17 +331,15 @@ def parseLinkStatePacket(packet):
         "timeToLive": timeToLive
     }
     
+    print(f"This packet came from: {address}")
     for key, info in linkStateInfo.items():
         if key == "neighbors":
             print(f"{key}:")
             for neighbor in info:
                 print(f"\t{neighbor}")
-            print()
             continue
-        print(f"{key}: {info}\n")
-        
-    sys.exit(1)
-    
+        print(f"{key}: {info}")
+    print("\n")
     return linkStateInfo
 
 # Completed
@@ -415,19 +411,23 @@ def handleLinkStateMessage(linkStateInfo, packet, address):
     # check the largest sequence number of the sender node to determine whether it is an old message
     # if it is an old message, ignore it
     nodeIpPortPair = linkStateInfo['nodeIpPortPair']
-    if largestSequenceNumber[nodeIpPortPair] > linkStateInfo['sequenceNumber']:
+    if largestSequenceNumber[nodeIpPortPair] >= linkStateInfo['sequenceNumber']:
         return
+    
+    largestSequenceNumber[nodeIpPortPair] = linkStateInfo['sequenceNumber']
     
     # check if topology changes
     nodeNeighborsFromLSM = linkStateInfo['neighbors']
     nodeNeighbors = topology[nodeIpPortPair]
+    
     for i in range(len(nodeNeighborsFromLSM)): 
-        neighborConnectedFromLSM = nodeNeighborsFromLSM[i][1]
+        neighborConnectedFromLSM = nodeNeighborsFromLSM[i][2]
         
         neighborConnected = nodeNeighbors[i][1]
         
         if neighborConnectedFromLSM != neighborConnected:
-            print(f"Since it was {neighborConnected} and now it is {neighborConnectedFromLSM} for {address}, topology has changed\n")
+            print(f"Since it was {neighborConnected} and now it is {neighborConnectedFromLSM} for {nodeNeighborsFromLSM[i][1]}, topology has changed\n")
+            
             # update the route topology and forwarding table stored in this emulator if needed
             nodeNeighbors[i][1] = neighborConnectedFromLSM
             
@@ -487,17 +487,26 @@ def updateTimeStamp(timestamp, address):
 
 # Completed
 def updateRouteTopology(address, status):
-    #print("update route topology")
-
     for neighbors in currentNeighbors:
         ip = neighbors[0][0]
         port = neighbors[0][1]
         if ip == address[0] and port == address[1]:
              # make sure that when we update currentNeighbors, topology is also updated 
             neighbors[1] = status
-    # print updated
-    #print(f"\n\nUpdated route topology: {topology}")
+    
+    printTopology()
 
+def printTopology():
+    print(f"Topology:\n")
+    for node, neighbors in topology.items():
+        curPrintString = ""
+        for neighbor in neighbors:
+            if not neighbor[1]:
+                continue
+            curPrintString += f"{neighbor[0][0]},{neighbor[0][1]} "
+        print(f"{node[0]},{node[1]} {curPrintString}")
+    print("\n")
+    
 # PROJECT 2 BELOW
     
 # this list will have a list that contains [packet, delay_time_started]
