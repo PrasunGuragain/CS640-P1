@@ -290,7 +290,12 @@ def parseLinkStatePacket(packet):
     
     nodeIpPortPair = (nodeIp, nodePort)
     neighbors = []
+    first = True
     for _ in topology[nodeIpPortPair]:
+        if not first:
+            packet = packet[struct.calcsize(neighbor_time_stamp_format) + 1:]
+        first = False
+            
         # unpack neighbor ip
         sendingIp = socket.inet_ntoa( struct.unpack( node_ip_format, packet[ :struct.calcsize(node_ip_format) ] )[0] )
         packet = packet[struct.calcsize(node_ip_format):]
@@ -302,7 +307,13 @@ def parseLinkStatePacket(packet):
         packet = packet[struct.calcsize(neighbor_connected_format):]
         
         sendingNeighborTimeStamp = struct.unpack(neighbor_time_stamp_format, packet[:struct.calcsize(neighbor_time_stamp_format)])[0]
-        packet = packet[struct.calcsize(neighbor_time_stamp_format):]
+        
+        print(f"sendingIp: {sendingIp}")
+        print(f"sendingPort: {sendingPort}")
+        print(f"sendingNeighborConnected: {sendingNeighborConnected}")
+        print(f"sendingNeighborTimeStamp: {sendingNeighborTimeStamp}\n")
+        
+        #sys.exit(1)
         
         packedNeighbor = [sendingIp, sendingPort, sendingNeighborConnected, sendingNeighborTimeStamp]
         neighbors.append(packedNeighbor)
