@@ -71,7 +71,7 @@ def readTopology(filename):
     # build largestSequenceNumber
     for node in ipPortPairInTopology:
         largestSequenceNumber[node] = 0
-    
+    original_topology = topology.copy()
     printTopology()
     
     buildForwardTable()
@@ -354,14 +354,17 @@ def parseLinkStatePacket(packet, address):
         "timeToLive": timeToLive
     }
     
-    print(f"This packet came from: {address}")
+    print(f"This packet came from neighbor: {address}")
     for key, info in linkStateInfo.items():
         if key == "neighbors":
             print(f"{key}:")
             for neighbor in info:
                 print(f"\t{neighbor}")
             continue
-        print(f"{key}: {info}")
+        curKey = key
+        if key == "nodeIpPortPair":
+            curKey = "Original Sender"
+        print(f"{curKey}: {info}")
     print("\n")
     return linkStateInfo
 
@@ -454,7 +457,9 @@ def handleLinkStateMessage(linkStateInfo, packet, address):
             print(f"Since it was {neighborConnected} and now it is {neighborConnectedFromLSM} for {nodeNeighborsFromLSM[i][1]}, topology has changed\n")
             
             # update the route topology and forwarding table stored in this emulator if needed
-            nodeNeighbors[i][1] = neighborConnectedFromLSM
+            #nodeNeighbors[i][1] = neighborConnectedFromLSM
+
+            updateRouteTopology(nodeNeighborsFromLSM[i], neighborConnectedFromLSM)
             
             # re build the forwarding table
             buildForwardTable()
@@ -512,13 +517,28 @@ def updateTimeStamp(timestamp, address):
 
 # Completed
 def updateRouteTopology(address, status):
-    for neighbors in currentNeighbors:
-        ip = neighbors[0][0]
-        port = neighbors[0][1]
-        if ip == address[0] and port == address[1]:
-             # make sure that when we update currentNeighbors, topology is also updated 
-            neighbors[1] = status
-    
+    print(f"address:{address}\n status:{status}")
+    node_to_del = None
+    node_to_add = None
+    for node, neighbors in topology.items(): 
+        if node == address:
+            if status == False and node in topology:
+                node_to_del = node
+            elif status and node not in topology:
+                # add original topolgoy back 
+                # topology[node] = original_topology[node]
+                node_to_add = node
+        print(f"node: {node}\nneighbors: {neighbors}")
+        for neighbor in neighbors:
+            print(f"\nneighbor: {neighbor}")
+            ip = neighbor[0][0]
+            port = neighbor[0][1]
+            if ip == address[0] and port == address[1]:
+                neighbor[1] = status
+    if node_to_del is not None:
+        del topology[node_to_del]
+    if node_to_add is not None: 
+        topology[node] = node_to_add
     printTopology()
 
 def printTopology():
