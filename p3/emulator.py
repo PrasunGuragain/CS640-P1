@@ -31,6 +31,14 @@ largestSequenceNumber = {}
 
 sequenceNumber = 0
 
+last_time_hello_sent = 0
+hello_interval = 5
+
+last_time_link_state_sent = 0
+link_state_interval = 15
+
+last_time_all_link_state_received = 0
+
 # Completed
 def readTopology(filename):
     print("Reading topology...\n")
@@ -70,6 +78,11 @@ def readTopology(filename):
 
 # TODO: Not completed
 def createRoutes():
+    global last_time_hello_sent
+    global hello_interval 
+    global last_time_link_state_sent 
+    global link_state_interval 
+    global last_time_all_link_state_received 
     print("Creating routes...\n")
     '''
     Refer to the course textbook pages 252-258 for details on the link-state protocol.
@@ -82,10 +95,6 @@ def createRoutes():
         HelloMessage: At defined intervals, each emulator should send the HelloMessage to its immediate neighbors. 
         The goal of this message is letting the node know the state of its immediate neighbors.  
         '''
-        # send HelloMessage to immediate neighbors
-        # print(f"Sending HelloMessage to immediate neighbors")
-        sendHelloMessages()
-        
         # Receive packet from network in a non-blocking way. 
         # check for incoming packets
         # print(f"Checking for incoming packets")
@@ -112,8 +121,22 @@ def createRoutes():
         except BlockingIOError:
             # print(f"\n\n~~~~~~~No incoming packets~~~~~~~\n\n")
             pass
+
+        if last_time_hello_sent + hello_interval < time.time():
+            # send HelloMessage to immediate neighbors
+            # print(f"Sending HelloMessage to immediate neighbors")
+            sendHelloMessages()
+            last_time_hello_sent = time.time()
         
         checkNeighborTimeout()
+
+        if last_time_link_state_sent + link_state_interval < time.time():
+            sendLinkStateMessage()
+            last_time_link_state_sent = time.time()
+
+        if last_time_all_link_state_received + link_state_interval < time.time():
+            buildForwardTable()
+            last_time_all_link_state_received = time.time()
 
 # TODO: almost completed
 def buildForwardTable(): 
@@ -355,11 +378,13 @@ def sendHelloMessages():
     '''
     for neighbors in topology[currentIpPortPair]:
         # send HelloMessage
-        
+        if not neighbors[1]:
+            continue
+
         neighborsIp, neighborsPort = neighbors[0]
         packet = createHelloPacket()
         sock.sendto(packet, (neighborsIp, neighborsPort))
-        #print(f"Sent HelloMessage to {neighbors[0]}\n")
+        print(f"Sent HelloMessage to {neighbors[0]}\n")
             
 # TODO: Completed
 def handleHelloMessage(timestamp, address):
@@ -645,7 +670,7 @@ else:
     print("Filename argument (-f) is missing.")
     sys.exit(1)
     
-print(f"Running emulator on port {port}...")
+print(f"Running emulator on port {port}...\n")
     
 ip = socket.gethostbyname(socket.gethostname())
 #print(ip)
