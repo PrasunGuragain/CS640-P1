@@ -1,0 +1,6 @@
+Topology:
+    # Sender (port 5000) ---- Emulator1 (port 3000) ---- Requester (port 4000)
+    # Sender (port 5001) ----|
+    # Sender (port 5002) ----|
+
+On the emulator, no delay or packet lost; queue size is large enough to avoid queue full error.

@@ -1,0 +1,15 @@
+The time different between two experiments is correct.
+   In  total there are 42 packets to transfer for each sender.
+   The delay for emulator is 10ms in t5c folder.
+
+   For t5c: latency should be around 10ms * 42 = 420ms. 
+            (since sender's rate is 1/100 = 10ms; 
+             the total packet number for one sender is 42; 
+             two senders send packets to the requester simutaneously)
+   For t5d: latency should be around 10ms * 42 * 2 = 840ms. 
+            (since the emulator's delay for each packet is 10ms; 
+             the total packet number that the emulator needs forward is 42 * 2 = 84. (there're two senders.)
+             )
+
+   => The latency difference between two experiments is around 420ms.
+   

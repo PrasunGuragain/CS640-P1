@@ -1,0 +1,5 @@
+Topology:
+    # Sender (port 5000) ---- Emulator1 (port 3000) ---- Requester (port 4000)
+    # Sender (port 5001) -----|
+
+set the lost for the link between emulator and requester as 20, 

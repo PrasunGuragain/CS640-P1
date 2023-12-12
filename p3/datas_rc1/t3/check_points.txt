@@ -1,0 +1,11 @@
+1. Generated output file is correct.
+2. The latency is in a reasonable range (around 5 seconds). 
+   Sender side:     In this case, the rate on the sender side is 100 packet/second. delay=1/100=10ms.
+                    The total data packet number is 517.
+                    Two senders send packets simutaneously.
+   Emulator side:   No delay/lost for emulator. The queue size is long enough to avoid queue full error.
+   Requester side:  Be able to receive the requests from different senders simutaneously.
+   => The latency should be around 10ms*517~=5s.
+3. The requester prints the summary information correctly.
+4. The sender prints the lost rate as 0.
+5. The emulator log can be empty.

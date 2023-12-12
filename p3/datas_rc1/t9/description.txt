@@ -1,0 +1,6 @@
+Topology:
+    # Sender1 (port 5000) ---- Emulator1 (port 3000) ---- Requester (port 4000)
+    # Sender2 (port 5001) -----|
+
+Sender 2 has higher priority than sender1.
+The delay between emulator and requester is 20ms to ensure the packets will be queued.

@@ -1,0 +1,1 @@
+1. The requester will first print the summary information for sender 2, then sender1.
