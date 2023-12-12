@@ -31,6 +31,8 @@ largestSequenceNumber = {}
 
 forwarding_table = {}
 
+original_topology = {}
+
 sequenceNumber = 0
 
 last_time_hello_sent = 0
@@ -43,6 +45,7 @@ last_time_all_link_state_received = 0
 
 # Completed
 def readTopology(filename):
+    global original_topology
     '''
     Write a function to read the topology file and initialize the emulator with the network structure.
     Ensure that the emulator knows its neighbors.
@@ -117,7 +120,6 @@ def createRoutes():
                 pass
             elif packetType == b'L':
                 linkStateInfo = parseLinkStatePacket(packet, address)
-                print("Received LinkStateMessage\n")
                 handleLinkStateMessage(linkStateInfo, packet, address)
                 pass
             elif packetType == b'T':
@@ -144,6 +146,7 @@ def createRoutes():
 # TODO: almost completed
 def buildForwardTable(): 
     # initialize the confirmed set with the current emulator (Destination (ip, port): (Cost, NextHop))
+    
     confirmed = {(emulator_hostname, port): (0, None)}
     
     while True:
@@ -179,6 +182,7 @@ def buildForwardTable():
             confirmed[next_node] = tentative[next_node]
             
     # Build the forwarding table from the perspective of each source node
+    #forwarding_table = {}
     for source_node, (cost, next_hop) in confirmed.items():
         forwarding_table[source_node] = (cost, next_hop)
 
@@ -455,8 +459,6 @@ def handleHelloMessage(timestamp, address):
                 
                 # re build the forwarding table
                 buildForwardTable()
-
-                # printForwardingTable()
                 
                 # send LinkStateMessage
                 sendLinkStateMessage()
@@ -491,24 +493,12 @@ def handleLinkStateMessage(linkStateInfo, packet, address):
         
         neighborConnected = nodeNeighbors[i][1]
         
-        # print(f"neighborConnectedFromLSM: {neighborConnectedFromLSM}\n")
-        # print(f"neighborConnected: {neighborConnected}\n")
         if neighborConnectedFromLSM != neighborConnected:
-            # print(f"Topology before:")
-            # printTopology()
-            # print(f"Table before:")
-            # printForwardingTable()
-
             # update the route topology and forwarding table stored in this emulator if needed
             updateRouteTopology(nodeNeighborsFromLSM[i], neighborConnectedFromLSM)
             
             # re build the forwarding table
             buildForwardTable()
-
-            # print(f"Topology after:")
-            # printTopology()
-            # print(f"Table after:")
-            # printForwardingTable()
 
             printForwardingTable()
 
@@ -588,12 +578,12 @@ def updateTimeStamp(timestamp, address):
 def updateRouteTopology(address, status):
     node_to_del = None
     node_to_add = None
-    for node, neighbors in topology.items(): 
+    for node, neighbors in original_topology.items(): 
         if node == address:
             if status == False and node in topology:
                 node_to_del = node
             elif status and node not in topology:
-                # add original topolgoy back 
+                # add original topology back, as well as forwarding table
                 node_to_add = node
         for neighbor in neighbors:
             ip = neighbor[0][0]
@@ -602,9 +592,10 @@ def updateRouteTopology(address, status):
                 neighbor[1] = status
     if node_to_del is not None:
         del topology[node_to_del]
-    if node_to_add is not None: 
-        topology[node] = node_to_add
-    print("In updateRouteTopology\n")
+        del forwarding_table[node_to_del]
+    if node_to_add is not None:
+        topology[node_to_add] = original_topology[node_to_add]
+        
     printTopology()
 
 def printTopology():
@@ -621,11 +612,6 @@ def printTopology():
 def printForwardingTable():
     print(f"Forwarding table:\n")
     for node, neighbors in forwarding_table.items():
-        print(f"node: {node} - ", end='')
-        print(f"neighbors: {neighbors}")
-        #print(f"{node[0]},{node[1]} ", end='')
-        #print(f"{neighbors[1][0]},{neighbors[1][1]}")
-        continue
         if node == (emulator_hostname, port):
             continue
         ignore = False
